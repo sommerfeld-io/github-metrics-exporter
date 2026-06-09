@@ -1,24 +1,24 @@
 {
-	"rules": [
-		".devcontainer",
+    "rules": [
+        ".devcontainer",
 
-		".github",
-		".github/prompts",
-		".github/skills/*",
-		".github/workflows",
-		".github/workflows/assets",
+        ".github",
+        ".github/prompts",
+        ".github/skills/*",
+        ".github/workflows",
+        ".github/workflows/assets",
 
-    ".task/**",
-		".vscode",
+        ".task/**",
+        ".vscode",
 
-		"docs",
+        "docs",
 
-		"src",
-		"tests/acceptance",
-		"tests/inspec",
+        "src",
+        "tests/acceptance",
+        "tests/inspec",
 
-    "node_modules/**",
-		"public/**",
-		"target/**"
-	]
+        "node_modules/**",
+        "public/**",
+        "target/**"
+    ]
 }
