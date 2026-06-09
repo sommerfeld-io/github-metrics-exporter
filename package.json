@@ -1,6 +1,6 @@
 {
   "name": "github-metrics-exporter",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "directories": {
     "doc": "docs"
   },
@@ -14,7 +14,7 @@
     "@semantic-release/git": "^10.0.1",
     "@semantic-release/github": "^10.3.5",
     "@semantic-release/npm": "^13.1.5",
-    "@semantic-release/release-notes-generator": "^14.1.0",
+    "@semantic-release/release-notes-generator": "^14.1.1",
     "semantic-release": "^25.0.3"
   }
 }
