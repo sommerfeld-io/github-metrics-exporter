@@ -1,0 +1,245 @@
+---
+name: "Pipeline: Commit + Test"
+
+on:
+  push:
+    branches-ignore:
+      - dependabot/**
+    paths-ignore:
+      - '**.adoc'
+      - '**.md'
+      - 'docs/**'
+      - '.devcontainer/**'
+      - '.github/workflows/dev-environment.yml'
+      - '.vscode/**'
+      - '.gitkeep'
+  schedule:
+    - cron: '0 1 * * 2'
+
+env:
+  IMAGE_TAG_RC: rc
+  IMAGE_TAG_LATEST: latest
+  IMAGE_NAME: template-repository
+  CONTEXT: .
+  DOCKERFILE: Dockerfile
+  REGISTRY: docker.io
+
+permissions:
+  contents: read
+
+jobs:
+
+  shellcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          submodules: true
+      - name: Login to Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.DOCKERHUB_USER }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Run ShellCheck
+        uses: ludeeus/action-shellcheck@2.0.0
+        with:
+          ignore_paths: node_modules target
+
+  lint:
+    runs-on: ubuntu-latest
+    name: ${{ matrix.linter }}
+    strategy:
+      matrix:
+        linter: ['yaml', 'workflows', 'filenames', 'folders', 'markdown-links']
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          submodules: true
+      - name: Login to Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.DOCKERHUB_USER }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Run lint-${{ matrix.linter }} from docker-compose.yml
+        env:
+          LINTER: ${{ matrix.linter }}
+        run: docker compose up "lint-$LINTER" --exit-code-from "lint-$LINTER"
+        shell: bash
+
+  lint-dockerfile:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          submodules: true
+      - name: Login to Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.DOCKERHUB_USER }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Run lint dockerfile
+        run: docker compose up app-lint-dockerfile --exit-code-from app-lint-dockerfile
+        shell: bash
+
+  # ----- Build images stage ----------------------------------------------------------------------
+
+  build-image:
+    runs-on: ubuntu-latest
+    needs: [
+      'lint',
+      'lint-dockerfile',
+      'shellcheck',
+    ]
+    permissions:
+      contents: read
+      pull-requests: write
+      security-events: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          submodules: true
+      - name: hadolint
+        uses: hadolint/hadolint-action@v3.3.0
+        with:
+          dockerfile: Dockerfile
+      # - name: Set up Docker Buildx
+      #   uses: docker/setup-buildx-action@v3
+      # - name: Login to Container Registry
+      #   uses: docker/login-action@v4
+      #   with:
+      #     registry: ${{ env.REGISTRY }}
+      #     username: ${{ secrets.DOCKERHUB_USER }}
+      #     password: ${{ secrets.DOCKERHUB_TOKEN }}
+      # - name: Extract metadata (tags, labels) for Docker
+      #   id: meta
+      #   uses: docker/metadata-action@v5.5.1
+      #   with:
+      #     images: ${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USER }}/${{ env.IMAGE_NAME }}
+      #     labels: |
+      #       org.opencontainers.image.revision=${{ github.sha }}
+      #       org.opencontainers.image.title=$IMAGE_NAME
+      #       org.opencontainers.image.description=$IMAGE_NAME
+      #       org.opencontainers.image.vendor=sommerfeld-io
+      #       org.opencontainers.image.documentation=https://sommerfeld-io.github.io/template-repository
+      # - name: Build the Docker image and push to
+      #   uses: docker/build-push-action@v6
+      #   with:
+      #     context: .
+      #     platforms: linux/amd64
+      #     push: true
+      #     tags: ${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USER }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+      #     labels: ${{ steps.meta.outputs.labels }}
+      #     provenance: true
+      #     sbom: true
+      # - name: Docker Scout CVEs for :${{ github.sha }}
+      #   uses: docker/scout-action@v1.14.0
+      #   with:
+      #     command: cves
+      #     image: ${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USER }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+      #     exit-code: false
+      #     write-comment: ${{ github.event_name == 'pull_request' }}
+
+  # ----- Deploy ----------------------------------------------------------------------
+
+  publish-rc:
+    runs-on: ubuntu-latest
+    if: ${{ (github.actor != 'dependabot[bot]') && (github.ref == 'refs/heads/main') }}
+    needs: ['build-image']
+    permissions:
+      contents: read
+    steps:
+      - name: Login to Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.DOCKERHUB_USER }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      # - name: Re-tag ${{ secrets.DOCKERHUB_USER }}/$IMAGE_NAME as release candicate (:${{ env.IMAGE_TAG_RC }}) and deploy to ${{ env.REGISTRY }}
+      #   env:
+      #     REGISTRY: ${{ env.REGISTRY }}
+      #     DOCKERHUB_USER: ${{ secrets.DOCKERHUB_USER }}
+      #     IMAGE_NAME: $IMAGE_NAME
+      #     COMMIT_SHA: ${{ github.sha }}
+      #   run: |
+      #     SRC_IMAGE="$REGISTRY/$DOCKERHUB_USER/$IMAGE_NAME:$COMMIT_SHA"
+      #     TARGET_IMAGE="$DOCKERHUB_USER/$IMAGE_NAME:$IMAGE_TAG_RC"
+      #     docker buildx imagetools create --tag "$TARGET_IMAGE" "$SRC_IMAGE"
+      #   shell: bash
+
+  # ----- Build Docs stage ------------------------------------------------------------------------
+
+  generate-docs:
+    runs-on: ubuntu-latest
+    needs: [
+      'build-image'
+    ]
+    if: ${{ github.actor != 'dependabot[bot]' }}
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          submodules: true
+          ref: ${{github.ref}}
+      - name: Install Task
+        uses: arduino/setup-task@v2.0.0
+        with:
+          version: 3.x
+      - name: Run task to generate docs
+        run: task docs:generate
+        shell: bash
+      - name: Build docs-build image
+        run: docker compose build docs-build
+        shell: bash
+      - name: Commit and push
+        uses: EndBug/add-and-commit@v10.0.0
+        with:
+          author_name: sebastian
+          author_email: sebastian@sommerfeld.io
+          message: 'docs: [Actions Bot] generate docs'
+
+  # ----- Release stage ---------------------------------------------------------------------------
+
+  release-code:
+    uses: sommerfeld-io/.github/.github/workflows/lib-release-code.yml@main
+    needs: [
+      'publish-rc',
+      'generate-docs',
+    ]
+    if: ${{ (github.actor != 'dependabot[bot]') && (github.ref == 'refs/heads/main') }}
+    secrets:
+      GH_TOKEN_REPO_AND_PROJECT: ${{ secrets.GH_TOKEN_REPO_AND_PROJECT }}
+    permissions:
+      contents: write
+
+  # ----- Cleanup -------------------------------
+
+  cleanup-dockerhub:
+    runs-on: ubuntu-latest
+    needs: ['publish-rc']
+    if: always()
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+      # - name: Remove ${{ env.IMAGE_NAME }}:${{ github.sha }} images from registry
+      #   env:
+      #     DOCKERHUB_USER: ${{ secrets.DOCKERHUB_USER }}
+      #     COMMIT_SHA: ${{ github.sha }}
+      #     DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+      #   run: |
+      #     TOKEN=$(curl -s -H "Content-Type: application/json" -X POST \
+      #       -d "{\"username\": \"$DOCKERHUB_USER\", \"password\": \"$DOCKERHUB_TOKEN\"}" \
+      #       https://hub.docker.com/v2/users/login/ | jq -r .token)
+      #     curl -X DELETE -H "Authorization: JWT ${TOKEN}" \
+      #       "https://hub.docker.com/v2/repositories/${DOCKERHUB_USER}/${IMAGE_NAME}/tags/${COMMIT_SHA}/"
+      #   shell: bash

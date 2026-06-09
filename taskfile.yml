@@ -1,0 +1,48 @@
+---
+version: '3.42.1'
+
+dotenv: ['.env']
+
+vars:
+  REPO: https://raw.githubusercontent.com/sommerfeld-io/.github
+
+includes:
+  cleanup: .task/cleanup/taskfile.yml
+  common: .task/common/taskfile.yml
+  copilot: .github/skills/taskfile.yml
+
+tasks:
+
+  lint:
+    desc: 'Run all project linters outside of Dockerfile linters'
+    cmds:
+      - task: cleanup:filesystem
+      - for: ['yaml', 'workflows', 'filenames', 'folders', 'markdown-links']
+        cmd: docker compose up lint-{{ .ITEM }} --exit-code-from lint-{{ .ITEM }}
+
+  # ===============================================================================================
+
+  docs:generate:
+    desc: 'Generate Markdown files for documentation'
+    cmds:
+      - echo "Collecting documentation from other Markdown files ..."
+      - task: common:copy
+        vars: { SRC: docs/index.md, DEST: README.md }
+      - task: common:copy
+        vars: { SRC: docs/license.md, DEST: LICENSE.md }
+
+  docs:run:
+    desc: 'Run the documentation server'
+    cmds:
+      - task: docs:generate
+      - docker compose up docs-dev-server
+
+  # ===============================================================================================
+
+  build:docker:
+    desc: 'Lint and build container COMPOSE_SERVICE'
+    vars:
+      COMPOSE_SERVICE: 'app'
+    cmds:
+      - docker compose up {{ .COMPOSE_SERVICE }}-lint-dockerfile --exit-code-from {{ .COMPOSE_SERVICE }}-lint-dockerfile
+      - docker compose build {{ .COMPOSE_SERVICE }}

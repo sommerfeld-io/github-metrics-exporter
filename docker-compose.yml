@@ -1,0 +1,81 @@
+---
+x-volumes: &volumes
+  - /etc/timezone:/etc/timezone:ro
+  - /etc/localtime:/etc/localtime:ro
+  - project-root-volume:/workspaces/template-repository
+x-workdir: &default-workdir /workspaces/template-repository
+x-tty: &tty true
+
+volumes:
+
+  project-root-volume:
+    driver: local
+    driver_opts:
+      type: none
+      device: .
+      o: bind
+
+services:
+  lint-yaml:
+    image: cytopia/yamllint:latest
+    volumes: *volumes
+    working_dir: *default-workdir
+    command: .
+    tty: *tty
+
+  lint-workflows:
+    image: rhysd/actionlint:latest
+    volumes: *volumes
+    working_dir: *default-workdir
+    command: -color
+    tty: *tty
+
+  lint-filenames:
+    image: lslintorg/ls-lint:1.11.2
+    volumes: *volumes
+    working_dir: *default-workdir
+    tty: *tty
+
+  lint-folders:
+    image: sommerfeldio/folderslint:latest
+    volumes: *volumes
+    working_dir: *default-workdir
+    command: .
+    tty: *tty
+
+  lint-markdown-links:
+    image: lycheeverse/lychee:sha-a11d515-alpine
+    volumes: *volumes
+    working_dir: *default-workdir
+    command: --config .lychee.toml .
+    tty: *tty
+
+  docs-build:
+    image: &docs-image sommerfeldio/mkdocs:latest
+    volumes: *volumes
+    working_dir: *default-workdir
+    command: build
+    tty: *tty
+
+  docs-dev-server:
+    image: *docs-image
+    volumes: *volumes
+    working_dir: *default-workdir
+    ports:
+      - 3080:8000
+    tty: *tty
+
+  app-lint-dockerfile:
+    image: &lint-dockerfile-image hadolint/hadolint:latest
+    volumes: *volumes
+    working_dir: *default-workdir
+    entrypoint: hadolint Dockerfile
+
+  app:
+    image: ${COMPOSE_PROJECT_NAME}-app:${DEV_TAG}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      app-lint-dockerfile:
+        condition: service_completed_successfully
