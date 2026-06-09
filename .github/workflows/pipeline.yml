@@ -92,7 +92,9 @@ jobs:
     name: ${{ matrix.image-name }}
     strategy:
       matrix:
-        image-name: ['github-metrics-exporter']
+        include:
+          - image-name: github-metrics-exporter
+            context: '.'
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -115,7 +117,7 @@ jobs:
 
   build-images:
     runs-on: ubuntu-latest
-    name: ${{ matrix.image-name }}:${{ github.sha }}${{ matrix.tag-suffix }}
+    name: ${{ matrix.image-name }}:${{ github.sha }}
     needs: [
       'lint',
       'lint-dockerfiles',
@@ -129,7 +131,7 @@ jobs:
       matrix:
         include:
           - image-name: github-metrics-exporter
-            tag-suffix: ''
+            context: '.'
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -150,28 +152,28 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USER }}/${{ matrix.image-name }}
           labels: |
             org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.title=${{ matrix.image-name }}${{ matrix.tag-suffix }}
-            org.opencontainers.image.description=${{ matrix.image-name }}${{ matrix.tag-suffix }}
+            org.opencontainers.image.title=${{ matrix.image-name }}
+            org.opencontainers.image.description=${{ matrix.image-name }}
             org.opencontainers.image.vendor=sommerfeld-io
             org.opencontainers.image.documentation=https://sommerfeld-io.github.io/container-images/images/${{ matrix.image-name }}
             dev.containers.source=https://github.com/sommerfeld-io/container-images
-            dev.containers.release=${{ github.sha }}${{ matrix.tag-suffix }}
-            version=${{ github.sha }}${{ matrix.tag-suffix }}
+            dev.containers.release=${{ github.sha }}
+            version=${{ github.sha }}
             org.opencontainers.image.licenses=MIT
       - name: Build the Docker image and push to registry
         uses: docker/build-push-action@v7
         with:
-          context: ${{ matrix.image-name }}
+          context: ${{ matrix.context }}
           platforms: linux/amd64
           push: true
-          tags: ${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USER }}/${{ matrix.image-name }}:${{ github.sha }}${{ matrix.tag-suffix }}
+          tags: ${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USER }}/${{ matrix.image-name }}:${{ github.sha }}
           labels: ${{ steps.meta.outputs.labels }}
           provenance: true
           sbom: true
 
   docker-scout:
     runs-on: ubuntu-latest
-    name: ${{ matrix.image-name }}:${{ github.sha }}${{ matrix.tag-suffix }}
+    name: ${{ matrix.image-name }}:${{ github.sha }}
     needs: [
       'build-images',
     ]
@@ -182,7 +184,7 @@ jobs:
       matrix:
         include:
           - image-name: github-metrics-exporter
-            tag-suffix: ''
+            context: '.'
     steps:
       - name: Login to Container Registry
         uses: docker/login-action@v4
@@ -195,8 +197,8 @@ jobs:
       #   uses: docker/scout-action@v1.21.0
       #   with:
       #     command: compare
-      #     image: ${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USER }}/${{ matrix.image-name }}:${{ github.sha }}${{ matrix.tag-suffix }}
-      #     to: ${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USER }}/${{ matrix.image-name }}:${{ env.IMAGE_TAG_LATEST }}${{ matrix.tag-suffix }}
+      #     image: ${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USER }}/${{ matrix.image-name }}:${{ github.sha }}
+      #     to: ${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USER }}/${{ matrix.image-name }}:${{ env.IMAGE_TAG_LATEST }}
       #     exit-code: false
       #     write-comment: true
       #     only-severities: critical,high,medium
@@ -206,7 +208,7 @@ jobs:
 
   publish-edge:
     runs-on: ubuntu-latest
-    name: ${{ matrix.image-name }}:${{ github.sha }}${{ matrix.tag-suffix }}
+    name: ${{ matrix.image-name }}:${{ github.sha }}
     if: ${{ github.ref == 'refs/heads/main' }}
     needs: [
       'docker-scout',
@@ -217,7 +219,7 @@ jobs:
       matrix:
         include:
           - image-name: github-metrics-exporter
-            tag-suffix: ''
+            context: '.'
     steps:
       - name: Login to Container Registry
         uses: docker/login-action@v4
@@ -233,10 +235,9 @@ jobs:
           DOCKERHUB_USER: ${{ secrets.DOCKERHUB_USER }}
           IMAGE_NAME: ${{ matrix.image-name }}
           COMMIT_SHA: ${{ github.sha }}
-          TAG_SUFFIX: ${{ matrix.tag-suffix }}
         run: |
-          SRC_IMAGE="$REGISTRY/$DOCKERHUB_USER/$IMAGE_NAME:$COMMIT_SHA$TAG_SUFFIX"
-          TARGET_IMAGE="$DOCKERHUB_USER/$IMAGE_NAME:$IMAGE_TAG_EDGE$TAG_SUFFIX"
+          SRC_IMAGE="$REGISTRY/$DOCKERHUB_USER/$IMAGE_NAME:$COMMIT_SHA"
+          TARGET_IMAGE="$DOCKERHUB_USER/$IMAGE_NAME:$IMAGE_TAG_EDGE"
           docker buildx imagetools create --tag "$TARGET_IMAGE" "$SRC_IMAGE"
         shell: bash
 
@@ -256,7 +257,7 @@ jobs:
   # ----- Cleanup -------------------------------
 
   cleanup-dockerhub:
-    name: ${{ matrix.image-name }}:${{ github.sha }}${{ matrix.tag-suffix }}
+    name: ${{ matrix.image-name }}:${{ github.sha }}
     runs-on: ubuntu-latest
     needs: ['publish-edge']
     if: always()
@@ -266,21 +267,20 @@ jobs:
       matrix:
         include:
           - image-name: github-metrics-exporter
-            tag-suffix: ''
+            context: '.'
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
-      - name: Remove ${{ matrix.image-name }}:${{ github.sha }}${{ matrix.tag-suffix }} images from registry
+      - name: Remove ${{ matrix.image-name }}:${{ github.sha }} images from registry
         env:
           DOCKERHUB_USER: ${{ secrets.DOCKERHUB_USER }}
           IMAGE_NAME: ${{ matrix.image-name }}
           COMMIT_SHA: ${{ github.sha }}
-          TAG_SUFFIX: ${{ matrix.tag-suffix }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
         run: |
           TOKEN=$(curl -s -H "Content-Type: application/json" -X POST \
             -d "{\"username\": \"$DOCKERHUB_USER\", \"password\": \"$DOCKERHUB_TOKEN\"}" \
             https://hub.docker.com/v2/users/login/ | jq -r .token)
           curl -X DELETE -H "Authorization: JWT ${TOKEN}" \
-            "https://hub.docker.com/v2/repositories/${DOCKERHUB_USER}/${IMAGE_NAME}/tags/${COMMIT_SHA}${TAG_SUFFIX}/"
+            "https://hub.docker.com/v2/repositories/${DOCKERHUB_USER}/${IMAGE_NAME}/tags/${COMMIT_SHA}/"
         shell: bash

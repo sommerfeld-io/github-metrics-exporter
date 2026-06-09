@@ -1,1 +1,7 @@
+.devcontainer
+.github
+.task
+.vscode
+
 docs
+tests/inspec
