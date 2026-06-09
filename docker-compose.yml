@@ -2,8 +2,8 @@
 x-volumes: &volumes
   - /etc/timezone:/etc/timezone:ro
   - /etc/localtime:/etc/localtime:ro
-  - project-root-volume:/workspaces/template-repository
-x-workdir: &default-workdir /workspaces/template-repository
+  - project-root-volume:/workspaces/github-metrics-exporter
+x-workdir: &default-workdir /workspaces/github-metrics-exporter
 x-tty: &tty true
 
 volumes:
@@ -16,6 +16,7 @@ volumes:
       o: bind
 
 services:
+
   lint-yaml:
     image: cytopia/yamllint:latest
     volumes: *volumes
@@ -48,21 +49,6 @@ services:
     volumes: *volumes
     working_dir: *default-workdir
     command: --config .lychee.toml .
-    tty: *tty
-
-  docs-build:
-    image: &docs-image sommerfeldio/mkdocs:latest
-    volumes: *volumes
-    working_dir: *default-workdir
-    command: build
-    tty: *tty
-
-  docs-dev-server:
-    image: *docs-image
-    volumes: *volumes
-    working_dir: *default-workdir
-    ports:
-      - 3080:8000
     tty: *tty
 
   app-lint-dockerfile:

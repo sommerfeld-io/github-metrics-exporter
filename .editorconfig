@@ -10,7 +10,7 @@ indent_style = space
 [*.js]
 indent_size = 4
 
-[*.json]
+[*.json|.folderslintrc]
 indent_size = 2
 
 [*.{java|kt|kts}]

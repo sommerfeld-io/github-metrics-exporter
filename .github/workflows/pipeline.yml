@@ -3,25 +3,40 @@ name: "Pipeline: Commit + Test"
 
 on:
   push:
-    branches-ignore:
-      - dependabot/**
+    branches:
+      - main
     paths-ignore:
       - '**.adoc'
       - '**.md'
       - 'docs/**'
       - '.devcontainer/**'
+      - '.github/workflows/scan.yml'
       - '.github/workflows/dev-environment.yml'
+      - '.github/workflows/housekeeping-issues.yml'
+      - '.github/workflows/housekeeping-labels.yml'
+      - '.vscode/**'
+      - '.gitkeep'
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches:
+      - main
+    paths-ignore:
+      - '**.adoc'
+      - '**.md'
+      - 'docs/**'
+      - '.devcontainer/**'
+      - '.github/workflows/scan.yml'
+      - '.github/workflows/dev-environment.yml'
+      - '.github/workflows/housekeeping-issues.yml'
+      - '.github/workflows/housekeeping-labels.yml'
       - '.vscode/**'
       - '.gitkeep'
   schedule:
-    - cron: '0 1 * * 2'
+    - cron: '0 4 * * 3'
 
 env:
-  IMAGE_TAG_RC: rc
-  IMAGE_TAG_LATEST: latest
-  IMAGE_NAME: template-repository
-  CONTEXT: .
-  DOCKERFILE: Dockerfile
+  IMAGE_TAG_EDGE: ${{ vars.IMAGE_TAG_EDGE }}
+  IMAGE_TAG_LATEST: ${{ vars.IMAGE_TAG_LATEST }}
   REGISTRY: docker.io
 
 permissions:
@@ -70,8 +85,14 @@ jobs:
         run: docker compose up "lint-$LINTER" --exit-code-from "lint-$LINTER"
         shell: bash
 
-  lint-dockerfile:
+  lint-dockerfiles:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    name: ${{ matrix.image-name }}
+    strategy:
+      matrix:
+        image-name: ['github-metrics-exporter']
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -83,77 +104,85 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ secrets.DOCKERHUB_USER }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - name: Run lint dockerfile
-        run: docker compose up app-lint-dockerfile --exit-code-from app-lint-dockerfile
+      - name: Run ${{ matrix.image-name }}-lint-dockerfile from docker-compose.yml
+        env:
+          IMAGE_NAME: ${{ matrix.image-name }}
+        run: docker compose up "$IMAGE_NAME-lint-dockerfile" --exit-code-from "$IMAGE_NAME-lint-dockerfile"
         shell: bash
+
 
   # ----- Build images stage ----------------------------------------------------------------------
 
-  build-image:
+  build-images:
     runs-on: ubuntu-latest
+    name: ${{ matrix.image-name }}:${{ github.sha }}${{ matrix.tag-suffix }}
     needs: [
       'lint',
-      'lint-dockerfile',
+      'lint-dockerfiles',
       'shellcheck',
     ]
     permissions:
       contents: read
       pull-requests: write
       security-events: write
+    strategy:
+      matrix:
+        include:
+          - image-name: github-metrics-exporter
+            tag-suffix: ''
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
         with:
           submodules: true
-      - name: hadolint
-        uses: hadolint/hadolint-action@v3.3.0
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+      - name: Login to Container Registry
+        uses: docker/login-action@v4
         with:
-          dockerfile: Dockerfile
-      # - name: Set up Docker Buildx
-      #   uses: docker/setup-buildx-action@v3
-      # - name: Login to Container Registry
-      #   uses: docker/login-action@v4
-      #   with:
-      #     registry: ${{ env.REGISTRY }}
-      #     username: ${{ secrets.DOCKERHUB_USER }}
-      #     password: ${{ secrets.DOCKERHUB_TOKEN }}
-      # - name: Extract metadata (tags, labels) for Docker
-      #   id: meta
-      #   uses: docker/metadata-action@v5.5.1
-      #   with:
-      #     images: ${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USER }}/${{ env.IMAGE_NAME }}
-      #     labels: |
-      #       org.opencontainers.image.revision=${{ github.sha }}
-      #       org.opencontainers.image.title=$IMAGE_NAME
-      #       org.opencontainers.image.description=$IMAGE_NAME
-      #       org.opencontainers.image.vendor=sommerfeld-io
-      #       org.opencontainers.image.documentation=https://sommerfeld-io.github.io/template-repository
-      # - name: Build the Docker image and push to
-      #   uses: docker/build-push-action@v6
-      #   with:
-      #     context: .
-      #     platforms: linux/amd64
-      #     push: true
-      #     tags: ${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USER }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
-      #     labels: ${{ steps.meta.outputs.labels }}
-      #     provenance: true
-      #     sbom: true
-      # - name: Docker Scout CVEs for :${{ github.sha }}
-      #   uses: docker/scout-action@v1.14.0
-      #   with:
-      #     command: cves
-      #     image: ${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USER }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
-      #     exit-code: false
-      #     write-comment: ${{ github.event_name == 'pull_request' }}
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.DOCKERHUB_USER }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v6.1.0
+        with:
+          images: ${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USER }}/${{ matrix.image-name }}
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.title=${{ matrix.image-name }}${{ matrix.tag-suffix }}
+            org.opencontainers.image.description=${{ matrix.image-name }}${{ matrix.tag-suffix }}
+            org.opencontainers.image.vendor=sommerfeld-io
+            org.opencontainers.image.documentation=https://sommerfeld-io.github.io/container-images/images/${{ matrix.image-name }}
+            dev.containers.source=https://github.com/sommerfeld-io/container-images
+            dev.containers.release=${{ github.sha }}${{ matrix.tag-suffix }}
+            version=${{ github.sha }}${{ matrix.tag-suffix }}
+            org.opencontainers.image.licenses=MIT
+      - name: Build the Docker image and push to registry
+        uses: docker/build-push-action@v7
+        with:
+          context: ${{ matrix.image-name }}
+          platforms: linux/amd64
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USER }}/${{ matrix.image-name }}:${{ github.sha }}${{ matrix.tag-suffix }}
+          labels: ${{ steps.meta.outputs.labels }}
+          provenance: true
+          sbom: true
 
-  # ----- Deploy ----------------------------------------------------------------------
-
-  publish-rc:
+  docker-scout:
     runs-on: ubuntu-latest
-    if: ${{ (github.actor != 'dependabot[bot]') && (github.ref == 'refs/heads/main') }}
-    needs: ['build-image']
+    name: ${{ matrix.image-name }}:${{ github.sha }}${{ matrix.tag-suffix }}
+    needs: [
+      'build-images',
+    ]
     permissions:
       contents: read
+      pull-requests: write
+    strategy:
+      matrix:
+        include:
+          - image-name: github-metrics-exporter
+            tag-suffix: ''
     steps:
       - name: Login to Container Registry
         uses: docker/login-action@v4
@@ -161,58 +190,62 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ secrets.DOCKERHUB_USER }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      # - name: Re-tag ${{ secrets.DOCKERHUB_USER }}/$IMAGE_NAME as release candicate (:${{ env.IMAGE_TAG_RC }}) and deploy to ${{ env.REGISTRY }}
-      #   env:
-      #     REGISTRY: ${{ env.REGISTRY }}
-      #     DOCKERHUB_USER: ${{ secrets.DOCKERHUB_USER }}
-      #     IMAGE_NAME: $IMAGE_NAME
-      #     COMMIT_SHA: ${{ github.sha }}
-      #   run: |
-      #     SRC_IMAGE="$REGISTRY/$DOCKERHUB_USER/$IMAGE_NAME:$COMMIT_SHA"
-      #     TARGET_IMAGE="$DOCKERHUB_USER/$IMAGE_NAME:$IMAGE_TAG_RC"
-      #     docker buildx imagetools create --tag "$TARGET_IMAGE" "$SRC_IMAGE"
-      #   shell: bash
+      # - name: Docker Scout Compare with `:${{ env.IMAGE_TAG_LATEST }}` vs `:${{ github.sha }}` (pull requests only)
+      #   # if: ${{ github.event_name == 'pull_request' }}
+      #   uses: docker/scout-action@v1.21.0
+      #   with:
+      #     command: compare
+      #     image: ${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USER }}/${{ matrix.image-name }}:${{ github.sha }}${{ matrix.tag-suffix }}
+      #     to: ${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USER }}/${{ matrix.image-name }}:${{ env.IMAGE_TAG_LATEST }}${{ matrix.tag-suffix }}
+      #     exit-code: false
+      #     write-comment: true
+      #     only-severities: critical,high,medium
+      #     github-token: ${{ secrets.GITHUB_TOKEN }}
 
-  # ----- Build Docs stage ------------------------------------------------------------------------
+  # ----- Deploy ----------------------------------------------------------------------
 
-  generate-docs:
+  publish-edge:
     runs-on: ubuntu-latest
+    name: ${{ matrix.image-name }}:${{ github.sha }}${{ matrix.tag-suffix }}
+    if: ${{ github.ref == 'refs/heads/main' }}
     needs: [
-      'build-image'
+      'docker-scout',
     ]
-    if: ${{ github.actor != 'dependabot[bot]' }}
     permissions:
-      contents: write
+      contents: read
+    strategy:
+      matrix:
+        include:
+          - image-name: github-metrics-exporter
+            tag-suffix: ''
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
+      - name: Login to Container Registry
+        uses: docker/login-action@v4
         with:
-          submodules: true
-          ref: ${{github.ref}}
-      - name: Install Task
-        uses: arduino/setup-task@v2.0.0
-        with:
-          version: 3.x
-      - name: Run task to generate docs
-        run: task docs:generate
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.DOCKERHUB_USER }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+      - name: Re-tag ${{ secrets.DOCKERHUB_USER }}/${{ matrix.image-name }} as :${{ env.IMAGE_TAG_EDGE }} and deploy to ${{ env.REGISTRY }}
+        env:
+          REGISTRY: ${{ env.REGISTRY }}
+          DOCKERHUB_USER: ${{ secrets.DOCKERHUB_USER }}
+          IMAGE_NAME: ${{ matrix.image-name }}
+          COMMIT_SHA: ${{ github.sha }}
+          TAG_SUFFIX: ${{ matrix.tag-suffix }}
+        run: |
+          SRC_IMAGE="$REGISTRY/$DOCKERHUB_USER/$IMAGE_NAME:$COMMIT_SHA$TAG_SUFFIX"
+          TARGET_IMAGE="$DOCKERHUB_USER/$IMAGE_NAME:$IMAGE_TAG_EDGE$TAG_SUFFIX"
+          docker buildx imagetools create --tag "$TARGET_IMAGE" "$SRC_IMAGE"
         shell: bash
-      - name: Build docs-build image
-        run: docker compose build docs-build
-        shell: bash
-      - name: Commit and push
-        uses: EndBug/add-and-commit@v10.0.0
-        with:
-          author_name: sebastian
-          author_email: sebastian@sommerfeld.io
-          message: 'docs: [Actions Bot] generate docs'
 
   # ----- Release stage ---------------------------------------------------------------------------
 
   release-code:
     uses: sommerfeld-io/.github/.github/workflows/lib-release-code.yml@main
     needs: [
-      'publish-rc',
-      'generate-docs',
+      'publish-edge',
     ]
     if: ${{ (github.actor != 'dependabot[bot]') && (github.ref == 'refs/heads/main') }}
     secrets:
@@ -223,23 +256,31 @@ jobs:
   # ----- Cleanup -------------------------------
 
   cleanup-dockerhub:
+    name: ${{ matrix.image-name }}:${{ github.sha }}${{ matrix.tag-suffix }}
     runs-on: ubuntu-latest
-    needs: ['publish-rc']
+    needs: ['publish-edge']
     if: always()
     permissions:
       contents: read
+    strategy:
+      matrix:
+        include:
+          - image-name: github-metrics-exporter
+            tag-suffix: ''
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
-      # - name: Remove ${{ env.IMAGE_NAME }}:${{ github.sha }} images from registry
-      #   env:
-      #     DOCKERHUB_USER: ${{ secrets.DOCKERHUB_USER }}
-      #     COMMIT_SHA: ${{ github.sha }}
-      #     DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-      #   run: |
-      #     TOKEN=$(curl -s -H "Content-Type: application/json" -X POST \
-      #       -d "{\"username\": \"$DOCKERHUB_USER\", \"password\": \"$DOCKERHUB_TOKEN\"}" \
-      #       https://hub.docker.com/v2/users/login/ | jq -r .token)
-      #     curl -X DELETE -H "Authorization: JWT ${TOKEN}" \
-      #       "https://hub.docker.com/v2/repositories/${DOCKERHUB_USER}/${IMAGE_NAME}/tags/${COMMIT_SHA}/"
-      #   shell: bash
+      - name: Remove ${{ matrix.image-name }}:${{ github.sha }}${{ matrix.tag-suffix }} images from registry
+        env:
+          DOCKERHUB_USER: ${{ secrets.DOCKERHUB_USER }}
+          IMAGE_NAME: ${{ matrix.image-name }}
+          COMMIT_SHA: ${{ github.sha }}
+          TAG_SUFFIX: ${{ matrix.tag-suffix }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          TOKEN=$(curl -s -H "Content-Type: application/json" -X POST \
+            -d "{\"username\": \"$DOCKERHUB_USER\", \"password\": \"$DOCKERHUB_TOKEN\"}" \
+            https://hub.docker.com/v2/users/login/ | jq -r .token)
+          curl -X DELETE -H "Authorization: JWT ${TOKEN}" \
+            "https://hub.docker.com/v2/repositories/${DOCKERHUB_USER}/${IMAGE_NAME}/tags/${COMMIT_SHA}${TAG_SUFFIX}/"
+        shell: bash

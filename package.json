@@ -1,6 +1,6 @@
 {
-  "name": "template-repository",
-  "version": "1.6.1",
+  "name": "github-metrics-exporter",
+  "version": "0.0.0",
   "directories": {
     "doc": "docs"
   },
