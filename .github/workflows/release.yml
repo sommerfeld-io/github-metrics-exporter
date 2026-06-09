@@ -64,7 +64,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
           repository: ${{ secrets.DOCKERHUB_USER }}/${{ matrix.image-name }}
           short-description: ${{ github.event.repository.description }}
-          readme-filepath: components/${{ matrix.image-name }}/README.md
+          readme-filepath: ${{ matrix.context }}/README.md
 
   docker-scout:
     name: ${{ matrix.image-name }}
