@@ -192,17 +192,17 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ secrets.DOCKERHUB_USER }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      # - name: Docker Scout Compare with `:${{ env.IMAGE_TAG_LATEST }}` vs `:${{ github.sha }}` (pull requests only)
-      #   # if: ${{ github.event_name == 'pull_request' }}
-      #   uses: docker/scout-action@v1.21.0
-      #   with:
-      #     command: compare
-      #     image: ${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USER }}/${{ matrix.image-name }}:${{ github.sha }}
-      #     to: ${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USER }}/${{ matrix.image-name }}:${{ env.IMAGE_TAG_LATEST }}
-      #     exit-code: false
-      #     write-comment: true
-      #     only-severities: critical,high,medium
-      #     github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Docker Scout Compare with `:${{ env.IMAGE_TAG_LATEST }}` vs `:${{ github.sha }}` (pull requests only)
+        # if: ${{ github.event_name == 'pull_request' }}
+        uses: docker/scout-action@v1.21.0
+        with:
+          command: compare
+          image: ${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USER }}/${{ matrix.image-name }}:${{ github.sha }}
+          to: ${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USER }}/${{ matrix.image-name }}:${{ env.IMAGE_TAG_LATEST }}
+          exit-code: false
+          write-comment: true
+          only-severities: critical,high,medium
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
   # ----- Deploy ----------------------------------------------------------------------
 
