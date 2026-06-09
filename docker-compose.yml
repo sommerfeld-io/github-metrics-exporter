@@ -51,17 +51,17 @@ services:
     command: --config .lychee.toml .
     tty: *tty
 
-  app-lint-dockerfile:
+  github-metrics-exporter-lint-dockerfile:
     image: &lint-dockerfile-image hadolint/hadolint:latest
     volumes: *volumes
     working_dir: *default-workdir
     entrypoint: hadolint Dockerfile
 
-  app:
+  github-metrics-exporter:
     image: ${COMPOSE_PROJECT_NAME}-app:${DEV_TAG}
     build:
       context: .
       dockerfile: Dockerfile
     depends_on:
-      app-lint-dockerfile:
+      github-metrics-exporter-lint-dockerfile:
         condition: service_completed_successfully
