@@ -1,8 +1,18 @@
 # GitHub Metrics Exporter
 
-An exporter that translates GitHub API data into Prometheus metrics. Provides insights into GitHub Actions, pipeline health and trends. Provides deep operational visibility into GitHub Actions, pipeline health trends
+An exporter that translates GitHub API data into Prometheus metrics.
+
+<!-- ===== START status badge ===== -->
+
+[![Pipeline: Commit + Test](https://github.com/sommerfeld-io/github-metrics-exporter/actions/workflows/pipeline.yml/badge.svg)](https://github.com/sommerfeld-io/github-metrics-exporter/actions/workflows/pipeline.yml)
+[![Pipeline: Release](https://github.com/sommerfeld-io/github-metrics-exporter/actions/workflows/release.yml/badge.svg)](https://github.com/sommerfeld-io/github-metrics-exporter/actions/workflows/release.yml)
+
+<!-- ===== END status badge ===== -->
+
+Provide insights into GitHub Actions, pipeline health and trends. Provide deep operational visibility into GitHub Actions, pipeline health trends.
 
 - [Github Repository](https://github.com/sommerfeld-io/github-metrics-exporter)
+- [Docker Hub Repository](https://hub.docker.com/r/sommerfeldio/github-metrics-exporter)
 - [Sonarcloud Code Quality and Security Analysis](https://sonarcloud.io/project/overview?id=sommerfeld-io_github-metrics-exporter)
 - [Where to file issues](https://github.com/sommerfeld-io/github-metrics-exporter/issues)
 - [Project Board for Issues and Pull Requests](https://github.com/orgs/sommerfeld-io/projects/1/views/1)
