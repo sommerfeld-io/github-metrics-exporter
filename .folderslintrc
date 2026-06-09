@@ -11,8 +11,8 @@
         ".task/**",
         ".vscode",
 
+        "dashboards",
         "docs",
-
         "src",
         "tests/acceptance",
         "tests/inspec",
