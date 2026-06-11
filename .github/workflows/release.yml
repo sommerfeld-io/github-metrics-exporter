@@ -21,7 +21,6 @@ jobs:
 
   publish-release:
     runs-on: ubuntu-latest
-    name: github-metrics-exporter
     permissions:
       contents: read
     steps:
@@ -64,7 +63,6 @@ jobs:
           readme-filepath: ${{ env.context }}/README.md
 
   docker-scout:
-    name: github-metrics-exporter
     runs-on: ubuntu-latest
     needs: publish-release
     permissions:

@@ -20,7 +20,6 @@ permissions:
 jobs:
 
   docker-scout:
-    name: github-metrics-exporter
     runs-on: ubuntu-latest
     steps:
       - name: Get current date

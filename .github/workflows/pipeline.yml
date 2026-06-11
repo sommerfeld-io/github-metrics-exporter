@@ -91,7 +91,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    name: github-metrics-exporter
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -112,9 +111,8 @@ jobs:
 
   # ----- Build images stage ----------------------------------------------------------------------
 
-  build-images:
+  build-image:
     runs-on: ubuntu-latest
-    name: github-metrics-exporter:${{ github.sha }}
     needs: [
       'lint',
       'lint-dockerfiles',
@@ -165,9 +163,8 @@ jobs:
 
   docker-scout:
     runs-on: ubuntu-latest
-    name: github-metrics-exporter:${{ github.sha }}
     needs: [
-      'build-images',
+      'build-image',
     ]
     permissions:
       contents: read
@@ -195,7 +192,6 @@ jobs:
 
   publish-edge:
     runs-on: ubuntu-latest
-    name: github-metrics-exporter:${{ github.sha }}
     if: ${{ github.ref == 'refs/heads/main' }}
     needs: [
       'docker-scout',
@@ -239,7 +235,6 @@ jobs:
   # ----- Cleanup -------------------------------
 
   cleanup-dockerhub:
-    name: github-metrics-exporter:${{ github.sha }}
     runs-on: ubuntu-latest
     needs: ['publish-edge']
     if: always()
