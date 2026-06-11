@@ -10,6 +10,8 @@ env:
   IMAGE_TAG_EDGE: ${{ vars.IMAGE_TAG_EDGE }}
   IMAGE_TAG_LATEST: ${{ vars.IMAGE_TAG_LATEST }}
   REGISTRY: docker.io
+  image-name: github-metrics-exporter
+  context: '.'
 
 permissions:
   contents: read
@@ -18,12 +20,8 @@ permissions:
 jobs:
 
   docker-scout:
-    name: ${{ matrix.image-name }}
+    name: github-metrics-exporter
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - image-name: github-metrics-exporter
     steps:
       - name: Get current date
         id: date
@@ -39,7 +37,7 @@ jobs:
         uses: docker/scout-action@v1.21.0
         with:
           command: cves
-          image: ${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USER }}/${{ matrix.image-name }}:${{ env.IMAGE_TAG_LATEST }}
+          image: ${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USER }}/${{ env.image-name }}:${{ env.IMAGE_TAG_LATEST }}
           sarif-file: sarif-output.json
           summary: false
           organization: ${{ secrets.DOCKERHUB_USER }}
@@ -48,5 +46,5 @@ jobs:
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: sarif-output.json
-          category: 'Docker Scout CVEs - ${{ secrets.DOCKERHUB_USER }}/${{ matrix.image-name }}:${{ env.IMAGE_TAG_LATEST }}'
-          checkout_path: components/${{ matrix.image-name }}
+          category: 'Docker Scout CVEs - ${{ secrets.DOCKERHUB_USER }}/${{ env.image-name }}:${{ env.IMAGE_TAG_LATEST }}'
+          checkout_path: components/${{ env.image-name }}
