@@ -1,0 +1,31 @@
+---
+version: '3.42.1'
+
+vars:
+  BINARY_NAME: github-metrics-exporter
+
+tasks:
+
+  cleanup:
+    desc: Clean Go build artifacts
+    dir: &dir '{{.TASKFILE_DIR}}'
+    cmds:
+      - rm -rf {{ .BINARY_NAME }}
+
+  build:
+    desc: Test and build the {{ .BINARY_NAME }} binary with Go
+    dir: *dir
+    cmds:
+      - task: cleanup
+      - go mod tidy
+      - go fmt
+      - go vet
+      - go test -v ./...
+      - go build -o {{ .BINARY_NAME }}
+
+  run:
+    desc: Run the {{ .BINARY_NAME }} binary
+    dir: *dir
+    cmds:
+      - task: build
+      - ./{{ .BINARY_NAME }}

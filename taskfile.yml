@@ -4,12 +4,13 @@ version: '3.42.1'
 dotenv: ['.env']
 
 vars:
-  REPO: https://raw.githubusercontent.com/sommerfeld-io/.github
+  COMPOSE_SERVICE: 'github-metrics-exporter'
 
 includes:
   cleanup: .task/cleanup/taskfile.yml
   common: .task/common/taskfile.yml
   copilot: .github/skills/taskfile.yml
+  go: src/taskfile.yml
 
 tasks:
 
@@ -17,15 +18,19 @@ tasks:
     desc: 'Run all project linters outside of Dockerfile linters'
     cmds:
       - task: cleanup:filesystem
+      - task: go:cleanup
       - for: ['yaml', 'workflows', 'filenames', 'folders', 'markdown-links']
         cmd: docker compose up lint-{{ .ITEM }} --exit-code-from lint-{{ .ITEM }}
 
   # ===============================================================================================
 
-  build:docker:
+  docker:build:
     desc: 'Lint and build container COMPOSE_SERVICE'
-    vars:
-      COMPOSE_SERVICE: 'app'
     cmds:
       - docker compose up {{ .COMPOSE_SERVICE }}-lint-dockerfile --exit-code-from {{ .COMPOSE_SERVICE }}-lint-dockerfile
       - docker compose build {{ .COMPOSE_SERVICE }}
+
+  docker:run:
+    desc: 'Run container COMPOSE_SERVICE'
+    cmds:
+      - docker compose run --rm {{ .COMPOSE_SERVICE }}

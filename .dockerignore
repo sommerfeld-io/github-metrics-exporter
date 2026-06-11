@@ -5,3 +5,5 @@
 
 docs
 tests/inspec
+
+src/go/github-metrics-exporter
