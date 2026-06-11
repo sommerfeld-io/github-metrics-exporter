@@ -194,7 +194,7 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ github.ref == 'refs/heads/main' }}
     needs: [
-      'docker-scout',
+      'build-image', ## replace with test stages if there are any in the future
     ]
     permissions:
       contents: read
