@@ -59,7 +59,7 @@ services:
   #   tty: *tty
 
   lint-gherkin:
-    image: node:22.6.0-alpine3.19
+    image: node:23.3.0-alpine3.19
     volumes: *volumes
     working_dir: *default-workdir
     command:
