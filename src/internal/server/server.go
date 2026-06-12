@@ -14,18 +14,42 @@ const indexHTML = `<!DOCTYPE html>
   <meta charset="UTF-8">
   <title>GitHub Metrics Exporter</title>
   <style>
-    body { background-color: #121212; color: #e0e0e0; font-family: sans-serif; padding: 2rem; }
-    a { color: #90caf9; }
+    body {
+      background-color: #121212;
+      color: #e0e0e0;
+      font-family: sans-serif;
+      padding: 2rem 4rem 2rem 4rem;
+      margin: 0;
+    }
+	header {
+		border: 1px solid #444444;
+		padding: 1rem 2rem 1rem 2rem;
+	}
+	main {
+		border: 1px solid transparent;
+		padding: 1rem 2rem 1rem 2rem;
+		margin-bottom: 2rem;
+	}
+    a { color: #90caf9; text-decoration: none; }
+    a:hover { color: #ffb74d; text-decoration: none; }
+	code { background-color: #333333; padding: 0.2rem 0.4rem; border-radius: 4px; }
   </style>
 </head>
 <body>
-  <h1>GitHub Metrics Exporter</h1>
-  <p>Visit us <a href="https://github.com/sommerfeld-io/github-metrics-exporter/" target="_blank" rel="noopener noreferrer">on GitHub</a></p>
-  <ul>
-    <li><a href="/metrics">Metrics</a></li>
-    <li><a href="/healthz">Health Check</a></li>
-  </ul>
-  <p>Build commit SHA: {{.CommitSHA}}</p>
+  <header>
+    <h1>GitHub Metrics Exporter</h1>
+    <ul>
+      <li>Visit us <a href="https://github.com/sommerfeld-io/github-metrics-exporter/" target="_blank" rel="noopener noreferrer">on GitHub</a></li>
+      <li>Build commit SHA: <code>{{.CommitSHA}}</code> (<a href="https://github.com/sommerfeld-io/github-metrics-exporter/tree/{{.CommitSHA}}" target="_blank" rel="noopener noreferrer">browse files for this commit</a>)</li>
+    </ul>
+  </header>
+
+  <main>
+	<ul>
+		<li><a href="/metrics">Metrics</a></li>
+		<li><a href="/healthz">Health Check</a></li>
+	</ul>
+  </main>
 </body>
 </html>`
 

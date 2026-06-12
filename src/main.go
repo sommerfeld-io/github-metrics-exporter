@@ -10,8 +10,9 @@ import (
 )
 
 func main() {
-	metrics.Register(prometheus.DefaultRegisterer)
-
+	if err := metrics.Register(prometheus.DefaultRegisterer); err != nil {
+		log.Fatalf("failed to register metrics: %v", err)
+	}
 	port := "9400"
 
 	server := server.New()

@@ -14,7 +14,9 @@ import (
 func setup(t *testing.T) *http.ServeMux {
 	t.Helper()
 	reg := prometheus.NewRegistry()
-	metrics.Register(reg)
+	if err := metrics.Register(reg); err != nil {
+		t.Fatalf("failed to register metrics: %v", err)
+	}
 	return server.New()
 }
 
