@@ -1,4 +1,4 @@
-FROM golang:1.25.11-alpine3.24 AS build
+FROM golang:1.26.4-alpine3.24 AS build
 LABEL maintainer="sebastian@sommerfeld.io"
 
 RUN apk add --no-cache curl git \
