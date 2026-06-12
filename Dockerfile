@@ -7,7 +7,10 @@ RUN apk add --no-cache curl \
 WORKDIR /src
 COPY src /src
 
+## see src/taskfile.yml
 RUN task build
+
+
 
 
 FROM alpine:3.24.0 AS run

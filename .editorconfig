@@ -14,7 +14,7 @@ tab_width = 4
 [*.js]
 indent_size = 4
 
-[*.json|.folderslintrc]
+[*.json|.folderslintrc|.gherkin-lintrc]
 indent_size = 2
 
 [*.{java|kt|kts}]
