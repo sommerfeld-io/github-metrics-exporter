@@ -81,6 +81,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    ports:
+      - 9400:9400
     depends_on:
       github-metrics-exporter-lint-dockerfile:
         condition: service_completed_successfully

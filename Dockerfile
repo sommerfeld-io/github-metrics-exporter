@@ -1,11 +1,12 @@
 FROM golang:1.25.11-alpine3.24 AS build
 LABEL maintainer="sebastian@sommerfeld.io"
 
-RUN apk add --no-cache curl \
+RUN apk add --no-cache curl git \
     && sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b /usr/local/bin
 
-WORKDIR /src
-COPY src /src
+COPY .git /workspaces/github-metrics-exporter/.git
+WORKDIR /workspaces/github-metrics-exporter/src
+COPY src /workspaces/github-metrics-exporter/src
 
 ## see src/taskfile.yml
 RUN task build
@@ -20,13 +21,12 @@ ARG USER_NAME=ghme
 ARG USER_ID=1000
 ARG GROUP_ID=1000
 
-WORKDIR /opt/github-metrics-exporter
-
 RUN addgroup -g ${GROUP_ID} ${USER_NAME} \
     && adduser -D -u ${USER_ID} -G ${USER_NAME} -h /opt/github-metrics-exporter ${USER_NAME} \
     && chown -R ${USER_NAME}:${USER_NAME} /opt/github-metrics-exporter
 
-COPY --from=build /src/github-metrics-exporter ./github-metrics-exporter
+WORKDIR /opt/github-metrics-exporter
+COPY --from=build /workspaces/github-metrics-exporter/src/github-metrics-exporter ./github-metrics-exporter
 
 USER ${USER_NAME}
 

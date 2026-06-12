@@ -53,7 +53,7 @@ tasks:
       - go fmt
       - go vet
       - go test -v ./...
-      - go build -o {{ .BINARY_NAME }}
+      - go build -ldflags "-X github.com/sommerfeld-io/github-metrics-exporter/internal/metrics.CommitSHA=$(git rev-parse HEAD)" -o {{ .BINARY_NAME }}
 
   run:
     desc: Run the {{ .BINARY_NAME }} binary

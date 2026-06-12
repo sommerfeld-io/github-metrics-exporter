@@ -36,4 +36,4 @@ tasks:
   docker:run:
     desc: 'Run container COMPOSE_SERVICE'
     cmds:
-      - docker compose run --rm {{ .COMPOSE_SERVICE }}
+      - docker compose up {{ .COMPOSE_SERVICE }}

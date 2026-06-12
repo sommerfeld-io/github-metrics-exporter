@@ -20,14 +20,18 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
-
+        uses: actions/checkout@v6
+        with:
+          submodules: true
+      - name: Install Task
+        uses: arduino/setup-task@v2.0.0
+        with:
+          version: 3.x
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version-file: src/go.mod
           cache-dependency-path: src/go.sum
-
       - name: Download Go module dependencies
         working-directory: src
         run: go mod download
