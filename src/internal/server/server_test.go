@@ -18,7 +18,7 @@ func setup(t *testing.T) *http.ServeMux {
 	return server.New()
 }
 
-func TestRootEndpointReturnsHTML(t *testing.T) {
+func TestRootEndpointShouldReturnHTML(t *testing.T) {
 	mux := setup(t)
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -34,7 +34,7 @@ func TestRootEndpointReturnsHTML(t *testing.T) {
 	}
 }
 
-func TestRootEndpointContainsHeadline(t *testing.T) {
+func TestRootEndpointShouldContainHeadline(t *testing.T) {
 	mux := setup(t)
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -46,7 +46,7 @@ func TestRootEndpointContainsHeadline(t *testing.T) {
 	}
 }
 
-func TestRootEndpointContainsGitHubLink(t *testing.T) {
+func TestRootEndpointShouldContainGitHubLink(t *testing.T) {
 	mux := setup(t)
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -58,7 +58,7 @@ func TestRootEndpointContainsGitHubLink(t *testing.T) {
 	}
 }
 
-func TestRootEndpointContainsMetricsLink(t *testing.T) {
+func TestRootEndpointShouldContainMetricsLink(t *testing.T) {
 	mux := setup(t)
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -70,7 +70,7 @@ func TestRootEndpointContainsMetricsLink(t *testing.T) {
 	}
 }
 
-func TestRootEndpointContainsCommitSHA(t *testing.T) {
+func TestRootEndpointShouldContainCommitSHA(t *testing.T) {
 	mux := setup(t)
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -82,7 +82,7 @@ func TestRootEndpointContainsCommitSHA(t *testing.T) {
 	}
 }
 
-func TestRootEndpointContainsDarkTheme(t *testing.T) {
+func TestRootEndpointShouldContainDarkTheme(t *testing.T) {
 	mux := setup(t)
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -94,7 +94,7 @@ func TestRootEndpointContainsDarkTheme(t *testing.T) {
 	}
 }
 
-func TestInvalidRouteReturns404(t *testing.T) {
+func TestInvalidRouteShouldReturn404(t *testing.T) {
 	mux := setup(t)
 	for _, path := range []string{"/invalid-route", "/wrong/path"} {
 		rec := httptest.NewRecorder()
@@ -107,7 +107,7 @@ func TestInvalidRouteReturns404(t *testing.T) {
 	}
 }
 
-func TestHealthzEndpoint(t *testing.T) {
+func TestHealthzEndpointShouldReturnOK(t *testing.T) {
 	mux := setup(t)
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
@@ -123,7 +123,7 @@ func TestHealthzEndpoint(t *testing.T) {
 	}
 }
 
-func TestMetricsEndpointReturnsPlainText(t *testing.T) {
+func TestMetricsEndpointShouldReturnPlainText(t *testing.T) {
 	mux := setup(t)
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
