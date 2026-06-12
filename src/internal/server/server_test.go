@@ -56,6 +56,15 @@ func TestRootEndpointShouldContainGitHubLink(t *testing.T) {
 	if !strings.Contains(body, "https://github.com/sommerfeld-io/github-metrics-exporter/") {
 		t.Error("expected GitHub repository link in response body")
 	}
+	if !strings.Contains(body, "on GitHub") {
+		t.Error("expected link label 'on GitHub' in response body")
+	}
+	if !strings.Contains(body, `target="_blank"`) {
+		t.Error("expected GitHub link to open in a new tab (target=_blank)")
+	}
+	if !strings.Contains(body, `rel="noopener noreferrer"`) {
+		t.Error("expected GitHub link to have rel=noopener noreferrer")
+	}
 }
 
 func TestRootEndpointShouldContainMetricsLink(t *testing.T) {
@@ -67,6 +76,18 @@ func TestRootEndpointShouldContainMetricsLink(t *testing.T) {
 	body := rec.Body.String()
 	if !strings.Contains(body, `href="/metrics"`) {
 		t.Error("expected link to /metrics in response body")
+	}
+}
+
+func TestRootEndpointShouldContainHealthzLink(t *testing.T) {
+	mux := setup(t)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	mux.ServeHTTP(rec, req)
+
+	body := rec.Body.String()
+	if !strings.Contains(body, `href="/healthz"`) {
+		t.Error("expected link to /healthz in response body")
 	}
 }
 

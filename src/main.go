@@ -12,7 +12,9 @@ import (
 func main() {
 	metrics.Register(prometheus.DefaultRegisterer)
 
-	mux := server.New()
-	log.Println("Starting github-metrics-exporter on :9400")
-	log.Fatal(http.ListenAndServe(":9400", mux))
+	port := "9400"
+
+	server := server.New()
+	log.Printf("Starting github-metrics-exporter on :%s", port)
+	log.Fatal(http.ListenAndServe(":"+port, server))
 }

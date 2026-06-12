@@ -13,7 +13,7 @@
 
         "dashboards",
         "docs/*/*",
-        "src/",
+        "src/**",
         "tests/acceptance/features",
         "tests/inspec",
 
