@@ -111,7 +111,7 @@ func TestGaugeValueShouldNotBeZero(t *testing.T) {
 	if len(mfs) == 0 || len(mfs[0].GetMetric()) == 0 {
 		t.Fatal("expected at least one metric")
 	}
-	if val := mfs[0].GetMetric()[0].GetGauge().GetValue(); val == 0.0 {
+	if 0.0 == mfs[0].GetMetric()[0].GetGauge().GetValue() {
 		t.Error("gauge value must not be 0; Init must call Set(1)")
 	}
 }
