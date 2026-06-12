@@ -41,6 +41,13 @@ tasks:
       - "{{ .GO_PATH }} go-licenses check --include_tests --ignore {{ .MODULE }} --allowed_licenses {{ .ALLOWED_LICENSES }} {{ .MODULE }}"
       - "{{ .GO_PATH }} go-licenses report --include_tests --ignore {{ .MODULE }} {{ .MODULE }}"
 
+  test-with-coverage:
+    desc: Run unit tests with coverage report
+    dir: *dir
+    cmds:
+      - go test -v -coverprofile=coverage.out ./...
+      - go tool cover -func=coverage.out
+
   build:
     desc: Test and build the {{ .BINARY_NAME }} binary with Go
     dir: *dir
@@ -52,7 +59,7 @@ tasks:
       - go mod tidy
       - go fmt
       - go vet
-      - go test -v ./...
+      - task: test-with-coverage
       - go build -ldflags "-X github.com/sommerfeld-io/github-metrics-exporter/internal/metrics.CommitSHA=$(git rev-parse HEAD)" -o {{ .BINARY_NAME }}
 
   run:

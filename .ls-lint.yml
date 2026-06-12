@@ -15,6 +15,7 @@ ls:
   .yaml: kebab-case
   .toml: kebab-case
   .feature: kebab-case
+  .properties: kebab-case
 
   .java: PascalCase
   .kt: PascalCase
