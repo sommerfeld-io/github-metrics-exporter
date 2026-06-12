@@ -12,7 +12,7 @@
         ".vscode",
 
         "dashboards",
-        "docs",
+        "docs/*/*",
         "src/",
         "tests/acceptance",
         "tests/inspec",
