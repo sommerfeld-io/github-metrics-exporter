@@ -51,6 +51,7 @@ ignore:
 
   # linter definitions etc.
   - .editorconfig
+  - .gherkin-lintrc
   - .hadolint.yml
   - .lychee.toml
   - .ls-lint.yml

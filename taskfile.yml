@@ -19,8 +19,11 @@ tasks:
     cmds:
       - task: cleanup:filesystem
       - task: go:cleanup
-      - for: ['yaml', 'workflows', 'filenames', 'folders', 'markdown-links']
+      - for: ['yaml', 'workflows', 'filenames', 'folders', 'gherkin', 'markdown-links']
         cmd: docker compose up lint-{{ .ITEM }} --exit-code-from lint-{{ .ITEM }}
+      - task: go:complexity
+      - task: go:licenses
+      - task: go:lint
 
   # ===============================================================================================
 

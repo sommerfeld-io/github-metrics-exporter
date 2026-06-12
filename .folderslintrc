@@ -14,7 +14,7 @@
         "dashboards",
         "docs/*/*",
         "src/",
-        "tests/acceptance",
+        "tests/acceptance/features",
         "tests/inspec",
 
         "node_modules/**",

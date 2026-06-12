@@ -69,7 +69,7 @@ jobs:
     name: ${{ matrix.linter }}
     strategy:
       matrix:
-        linter: ['yaml', 'workflows', 'filenames', 'folders', 'markdown-links']
+        linter: ['yaml', 'workflows', 'filenames', 'folders', 'gherkin', 'markdown-links']
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -87,7 +87,7 @@ jobs:
         run: docker compose up "lint-$LINTER" --exit-code-from "lint-$LINTER"
         shell: bash
 
-  lint-dockerfiles:
+  lint-dockerfile:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -115,7 +115,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [
       'lint',
-      'lint-dockerfiles',
+      'lint-dockerfile',
       'shellcheck',
     ]
     permissions:
