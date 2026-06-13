@@ -17,6 +17,7 @@
         "github.vscode-github-actions",
         "redhat.vscode-yaml",
         "GitHub.copilot",
+        "anthropic.claude-code",
         "golang.go",
         "alexkrechik.cucumberautocomplete",
         "DavidAnson.vscode-markdownlint",
