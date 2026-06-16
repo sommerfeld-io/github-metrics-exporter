@@ -63,6 +63,23 @@ Apply these instructions to all Go code in `src/`.
 - Avoid redundant comments that only describe what the code already says.
 - Add a `PACKAGE.md` file to document the purpose of each package.
 
+### Line-level comments
+
+Avoid commenting on *what* the code does. Use comments to explain the *why* when the logic is non-obvious or complex. Prefer refactoring complex logic into well-named helper functions over adding inline comments.
+
+```go
+// Bad: comment only restates what the code already says
+// check if restaurant exists in the system
+if restaurant == nil {
+    return err
+}
+
+// Good: extract intent into a well-named function
+if err := checkRestaurantExists(restaurant); err != nil {
+    return err
+}
+```
+
 ### Imports
 
 Split imports into three groups separated by blank lines:
