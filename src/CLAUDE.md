@@ -1,4 +1,4 @@
-# GitHub Copilot Instructions
+# Claude Code Instructions
 
 ## Commit Messages: Conventional Commits
 
