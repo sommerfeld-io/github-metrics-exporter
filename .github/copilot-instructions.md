@@ -22,7 +22,7 @@ Write commit messages using the Conventional Commits format, ensuring the header
 
 ## Go Code Style and Project Structure
 
-Apply these instructions to all Go code in `src/`. When this file conflicts with the Google Go Style Guide, follow Google's guidance first.
+Apply these instructions to all Go code in `src/`.
 
 ### Style priorities
 
