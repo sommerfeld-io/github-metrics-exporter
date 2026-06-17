@@ -19,7 +19,7 @@ Provide insights into GitHub Actions, pipeline health and trends. Provide deep o
 
 ## AI-Assisted Development
 
-This project is developed with the help of AI coding assistants. We use [Claude Code](https://claude.ai/code) and [GitHub Copilot](https://github.com/features/copilot) in parallel.
+This project is developed with the help of AI coding assistants. We use [Claude Code](https://code.claude.com) and [GitHub Copilot](https://github.com/features/copilot) in parallel.
 
 AI assistants are guided by instruction files that define coding conventions, commit message rules, and project-specific guidelines. We maintain a single source of truth for these instructions and use symlinks so that each tool reads from the same file:
 
