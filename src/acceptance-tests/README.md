@@ -52,7 +52,7 @@ task go:build
 
 ## Relation to unit tests
 
-Unit test coverage is measured separately with `go test ./internal/...` and written to `src/coverage.out`. Acceptance tests are excluded from that scope deliberately — they start a server and test observable HTTP behaviour, not individual package internals.
+Unit test coverage is measured separately with `go test ./internal/...` and written to `src/coverage.out`. Acceptance tests are excluded from that scope deliberately - they start a server and test observable HTTP behaviour, not individual package internals.
 
 ## Acceptance-test-side coverage (`acceptance-coverage.out`)
 

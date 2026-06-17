@@ -39,7 +39,7 @@ Unit tests live next to the code they verify in `src/internal/` and follow the s
 
 Acceptance tests are GoDog (Cucumber/Gherkin) tests that live in `src/acceptance-tests/`. They are part of the main Go module but excluded from the unit-test coverage run. When `TestMain` starts, it registers the Prometheus metrics and calls `httptest.NewServer(server.New())`, which creates a fully functional HTTP server bound to a random ephemeral port. Every Gherkin step then makes real `http.Get` calls against that address. No binary, no Docker, no fixed port is involved. Run them in isolation with `task go:test:acceptance`.
 
-The acceptance tests are instrumented with `-coverpkg=./internal/...` and write a second coverage report to `src/acceptance-coverage.out`. This is a separate signal from `coverage.out`: it shows which lines in `internal/` are reachable end-to-end through the HTTP layer, not whether individual branches are exercised by unit tests. The two reports are intentionally kept apart — merging them would inflate unit-test coverage numbers and obscure gaps in either test suite.
+The acceptance tests are instrumented with `-coverpkg=./internal/...` and write a second coverage report to `src/acceptance-coverage.out`. This is a separate signal from `coverage.out`: it shows which lines in `internal/` are reachable end-to-end through the HTTP layer, not whether individual branches are exercised by unit tests. The two reports are intentionally kept apart - merging them would inflate unit-test coverage numbers and obscure gaps in either test suite.
 
 ```ditaa
 +---------------------------+          +----------------------------------+
