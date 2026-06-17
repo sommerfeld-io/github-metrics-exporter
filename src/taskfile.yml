@@ -41,12 +41,26 @@ tasks:
       - "{{ .GO_PATH }} go-licenses check --include_tests --ignore {{ .MODULE }} --allowed_licenses {{ .ALLOWED_LICENSES }} {{ .MODULE }}"
       - "{{ .GO_PATH }} go-licenses report --include_tests --ignore {{ .MODULE }} {{ .MODULE }}"
 
+  vulncheck:
+    desc: Scan for known vulnerabilities with govulncheck
+    dir: *dir
+    cmds:
+      - go install golang.org/x/vuln/cmd/govulncheck@latest
+      - "{{ .GO_PATH }} govulncheck -show verbose ./..."
+
   test:
     desc: Run unit tests with coverage report
     dir: *dir
     cmds:
       - go test -v -coverprofile=coverage.out ./internal/...
       - go tool cover -func=coverage.out
+
+  test:acceptance:
+    desc: Run GoDog acceptance tests for the exporter with end-to-end coverage of internal packages
+    dir: *dir
+    cmds:
+      - go test -v -coverpkg=./internal/... -coverprofile=acceptance-coverage.out ./acceptance-tests/...
+      - go tool cover -func=acceptance-coverage.out
 
   build:
     desc: Test and build the {{ .BINARY_NAME }} binary with Go
@@ -56,19 +70,13 @@ tasks:
       - task: complexity
       - task: licenses
       - task: lint
+      - task: vulncheck
       - go mod tidy
       - go fmt
       - go vet
       - task: test
       - task: test:acceptance
       - go build -ldflags "-X github.com/sommerfeld-io/github-metrics-exporter/internal/metrics.CommitSHA=$(git rev-parse HEAD)" -o {{ .BINARY_NAME }}
-
-  test:acceptance:
-    desc: Run GoDog acceptance tests for the exporter with end-to-end coverage of internal packages
-    dir: *dir
-    cmds:
-      - go test -v -coverpkg=./internal/... -coverprofile=acceptance-coverage.out ./acceptance-tests/...
-      - go tool cover -func=acceptance-coverage.out
 
   run:
     desc: Run the {{ .BINARY_NAME }} binary
