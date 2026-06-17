@@ -132,7 +132,7 @@ func TestInitShouldProduceExactlyOneTimeSeries(t *testing.T) {
 }
 
 // TestInitShouldProduceExactlyOneLabel verifies the metric carries exactly the one expected
-// label — no more, no fewer.
+// label - no more, no fewer.
 func TestInitShouldProduceExactlyOneLabel(t *testing.T) {
 	if err := meta.Init("test_", "abc123"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
