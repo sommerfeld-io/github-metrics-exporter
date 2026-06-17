@@ -3,6 +3,7 @@
         ".devcontainer",
 
         ".github",
+        ".github/instructions",
         ".github/prompts",
         ".github/skills/*",
         ".github/workflows",

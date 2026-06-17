@@ -14,11 +14,18 @@ includes:
 
 tasks:
 
+  symlinks:
+    desc: Create symlinks for shared files
+    cmds:
+      - ln -sf "$(pwd)/.github/copilot-instructions.md" "$(pwd)/CLAUDE.md"
+      - ln -sf "$(pwd)/.github/instructions/go.instructions.md" "$(pwd)/src/CLAUDE.md"
+
   lint:
-    desc: 'Run all project linters outside of Dockerfile linters'
+    desc: Run all project linters outside of Dockerfile linters
     cmds:
       - task: cleanup:filesystem
       - task: go:cleanup
+      - task: symlinks
       - for: ['yaml', 'workflows', 'filenames', 'folders', 'gherkin', 'markdown-links']
         cmd: docker compose up lint-{{ .ITEM }} --exit-code-from lint-{{ .ITEM }}
       - task: go:complexity
@@ -28,12 +35,12 @@ tasks:
   # ===============================================================================================
 
   docker:build:
-    desc: 'Lint and build container COMPOSE_SERVICE'
+    desc: Lint and build container COMPOSE_SERVICE
     cmds:
       - docker compose up {{ .COMPOSE_SERVICE }}-lint-dockerfile --exit-code-from {{ .COMPOSE_SERVICE }}-lint-dockerfile
       - docker compose build {{ .COMPOSE_SERVICE }}
 
   docker:run:
-    desc: 'Run container COMPOSE_SERVICE'
+    desc: Run container COMPOSE_SERVICE
     cmds:
       - docker compose up {{ .COMPOSE_SERVICE }}

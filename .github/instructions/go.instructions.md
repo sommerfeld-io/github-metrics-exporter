@@ -1,3 +1,7 @@
+---
+applyTo: "src/**/*.go
+---
+
 # Go Code Style and Project Structure
 
 Apply these instructions to all Go code in `src/`.

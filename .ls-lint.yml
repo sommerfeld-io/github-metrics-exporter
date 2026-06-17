@@ -4,6 +4,7 @@ ls:
   .puml: kebab-case
 
   .md: kebab-case | SCREAMING_SNAKE_CASE
+  .instructions.md: kebab-case | SCREAMING_SNAKE_CASE
   .prompt.md: kebab-case | SCREAMING_SNAKE_CASE
 
   .conf: kebab-case

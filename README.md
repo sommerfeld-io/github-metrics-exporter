@@ -17,6 +17,24 @@ Provide insights into GitHub Actions, pipeline health and trends. Provide deep o
 - [Where to file issues](https://github.com/sommerfeld-io/github-metrics-exporter/issues)
 - [Project Board for Issues and Pull Requests](https://github.com/orgs/sommerfeld-io/projects/1/views/1)
 
+## AI-Assisted Development
+
+This project is developed with the help of AI coding assistants. We use [Claude Code](https://claude.ai/code) and [GitHub Copilot](https://github.com/features/copilot) in parallel.
+
+AI assistants are guided by instruction files that define coding conventions, commit message rules, and project-specific guidelines. We maintain a single source of truth for these instructions and use symlinks so that each tool reads from the same file:
+
+| Symlink         | Points to (master file)                   |
+|-----------------|-------------------------------------------|
+| `CLAUDE.md`     | `.github/copilot-instructions.md`         |
+| `src/CLAUDE.md` | `.github/instructions/go.instructions.md` |
+
+The master instruction files live under `.github/` and are committed to the repository:
+
+- `.github/copilot-instructions.md` - project-wide conventions (commit messages, general style)
+- `.github/instructions/go.instructions.md` - Go-specific coding guidelines for the `src/` subtree
+
+The symlinks are also committed to git. Still, they are created locally by running `task symlinks` (see `taskfile.yml` for the exact `ln` commands used).
+
 ## Architecture Decisions
 
 All issues labeled as `ADR` [are tracked as GitHub issue](https://github.com/sommerfeld-io/github-metrics-exporter/issues?q=is%3Aissue+label%3AADR) and carry the respective label.
