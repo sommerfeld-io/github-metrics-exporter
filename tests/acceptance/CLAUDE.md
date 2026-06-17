@@ -1,0 +1,1 @@
+/workspaces/github-metrics-exporter/.github/instructions/go.instructions.md

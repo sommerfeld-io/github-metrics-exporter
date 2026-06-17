@@ -62,6 +62,12 @@ tasks:
       - task: test-with-coverage
       - go build -ldflags "-X github.com/sommerfeld-io/github-metrics-exporter/internal/metrics.CommitSHA=$(git rev-parse HEAD)" -o {{ .BINARY_NAME }}
 
+  acceptance-test:
+    desc: Run GoDog acceptance tests for the exporter
+    dir: '{{.TASKFILE_DIR}}/../tests/acceptance'
+    cmds:
+      - go test -v ./...
+
   run:
     desc: Run the {{ .BINARY_NAME }} binary
     dir: *dir

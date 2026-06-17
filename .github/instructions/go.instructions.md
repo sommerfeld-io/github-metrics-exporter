@@ -91,9 +91,17 @@ if err := someFunction(); err != nil {
 
 ## Testing
 
-- Follow TDD: write or update the test first when practical.
+- Follow TDD unconditionally. The test comes first - no exceptions.
 - Keep unit tests next to the code they verify and use the `_test.go` suffix.
 - Name tests with the `TestXxxShouldYyy` pattern.
 - Cover happy paths, negative cases, and inversions so tests prove both what should and should not happen.
 - Prefer table-driven tests when they improve clarity and reduce repetition.
-- Use `godog` and Gherkin for acceptance tests in `tests/acceptance`.
+
+### Acceptance tests and Gherkin feature files
+
+- `.feature` files define GoDog acceptance tests. They are **not** used to derive unit tests.
+- Step definitions live in `tests/acceptance/*_steps_test.go`.
+- Wire the GoDog suite in `tests/acceptance/suite_test.go`.
+- Acceptance test Go code in `tests/acceptance/` follows the same TDD discipline as production
+  code. Any non-trivial helper extracted into a non-test file must have its own `*_test.go` unit
+  tests.

@@ -22,11 +22,11 @@ const indexHTML = `<!DOCTYPE html>
       margin: 0;
     }
 	header {
-		border: 1px solid #444444;
+		border: 2px solid #444444;
 		padding: 1rem 2rem 1rem 2rem;
 	}
 	main {
-		border: 1px solid transparent;
+		border: 2px solid transparent;
 		padding: 1rem 2rem 1rem 2rem;
 		margin-bottom: 2rem;
 	}

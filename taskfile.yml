@@ -19,6 +19,7 @@ tasks:
     cmds:
       - ln -sf "$(pwd)/.github/copilot-instructions.md" "$(pwd)/CLAUDE.md"
       - ln -sf "$(pwd)/.github/instructions/go.instructions.md" "$(pwd)/src/CLAUDE.md"
+      - ln -sf "$(pwd)/.github/instructions/go.instructions.md" "$(pwd)/tests/acceptance/CLAUDE.md"
 
   lint:
     desc: Run all project linters outside of Dockerfile linters
@@ -40,6 +41,11 @@ tasks:
       - task: lint
       - docker compose up {{ .COMPOSE_SERVICE }}-lint-dockerfile --exit-code-from {{ .COMPOSE_SERVICE }}-lint-dockerfile
       - docker compose build {{ .COMPOSE_SERVICE }}
+
+  docker:acceptance-test:
+    desc: Build and run the acceptance-test Docker stage (human-controlled)
+    cmds:
+      - docker build --target acceptance-test -t ghme-acceptance-test .
 
   docker:run:
     desc: Run container COMPOSE_SERVICE
