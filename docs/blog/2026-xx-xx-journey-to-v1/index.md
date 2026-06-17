@@ -18,13 +18,24 @@ next i sorted issues into milestones because lots of ideas meant i had different
 
 > **TODO** Then i started implementing with github copilot
 
-## Implementation start and Claude Code vs GitHub Copilot
+## Blog Post Memo: Orchestrating Claude Code and GitHub Copilot in Parallel
 
-> **TODO** tbd ... what agent for what purpose ... how did i use them ...
->
-> Almost right away, my monthly token budget was gone. plus at work i started getting familiar with claude code. so i though about switching to claude or using both.
->
-> LINK TO ADR HERE !!!!!!
+* The Genesis & Brainstorming Process
+    * **The Problem Statement:** Wanted to use GitHub Copilot and Claude Code simultaneously on this repository without duplicating prompt instructions or causing AI conflicts. I want the github.com UI to work with copilot first but also (later) with claude code.
+    * **AI as a Thought Partner:** Started the journey by brainstorming with an AI (gemini)to map out directory structures, identify edge cases (like cross-OS compatibility), and refine the architecture.
+* Establishing "The Single Source of Truth"
+    * **Moving Away from Fragmentation:** Why keeping separate `.github/copilot-instructions.md` and `claude.md` files fails (sync friction, conflicting rules, maintenance fatigue).
+    * **The Solution:** Designing a central repository directory (`docs/instructions/`) to house a single, comprehensive `development-guidelines.md` (or "Project Bible").
+    * **Architectural Separation:** Keeping the master document strictly **tool-agnostic** (focusing purely on project standards, architecture, and coding paradigms) and **out-of-scope for source code** (keeping raw source files out of the instructions to save token context).
+* The Implementation Process (The Tech Stack Setup)
+    * **Leveraging Native Linux Power:** For a user-only Linux environment, utilizing native symbolic links (`ln -s`) is the absolute simplest, zero-overhead way to keep tools aligned.
+    * **Linking the Ecosystem:** Creating a symlink from the root or hidden configuration directories (like `.github/copilot-instructions.md`) directly back to the master file in `docs/instructions/`.
+    * **Git and Cloud Readiness:** * Confirming that Git natively tracks symlinks seamlessly across machines.
+    * Verifying that GitHub Actions (Ubuntu/macOS runners) natively respect and traverse these symlinks during CI/CD automated checks, ensuring the cloud environment sees the exact same rules.
+* Key Takeaways for the Reader
+    * Don't overcomplicate your automation; use basic OS primitives (like symlinks) before jumping to heavy scripts.
+    * Treat AI instructions like code: DRY (Don't Repeat Yourself).
+    * Bouncing ideas off an AI first can shave hours off workflow optimization and help catch environment-specific edge cases early.
 
 ## Getting into a rhythm (= using the SDLC and pipeline to have Ai implement features)
 
