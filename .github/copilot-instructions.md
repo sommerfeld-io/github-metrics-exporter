@@ -81,3 +81,26 @@ Cover the inversion. For every "should do X" test, add a "should not do Y" count
 ## Linux Requirement
 
 This repository uses symlinks and is intended to be worked on in a Linux environment. The devcontainer makes working from a Windows host possible - the container itself is Linux, and the actual development environment runs inside it.
+
+## Verifying Changes
+
+Run these commands from the repo root after changes to confirm everything compiles, passes linters, and all tests are green. All steps must pass before a change is considered complete - do not skip or work around failing checks.
+
+**During development** - run frequently after each incremental change. The Go build is fast, making it suitable for a tight feedback loop:
+
+```bash
+task go:lint    # Go linters only - even faster for a quick lint check
+task go:build   # lint + vet + test + compile (full Go pipeline)
+```
+
+**Checking project-wide linting** - run often to catch issues beyond Go (YAML, Markdown, filenames, Gherkin, license headers, cyclomatic complexity, etc.):
+
+```bash
+task lint       # Go linters and non-Go linters (YAML, Markdown, filenames, Gherkin, etc.)
+```
+
+**When the implementation is done** - run once before considering the work finished. This includes the Dockerfile lint and and lints the whole project and builds the container image:
+
+```bash
+task docker:build
+```

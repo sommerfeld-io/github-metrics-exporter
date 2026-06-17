@@ -37,6 +37,7 @@ tasks:
   docker:build:
     desc: Lint and build container COMPOSE_SERVICE
     cmds:
+      - task: lint
       - docker compose up {{ .COMPOSE_SERVICE }}-lint-dockerfile --exit-code-from {{ .COMPOSE_SERVICE }}-lint-dockerfile
       - docker compose build {{ .COMPOSE_SERVICE }}
 
