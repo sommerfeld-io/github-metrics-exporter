@@ -1,5 +1,5 @@
 ---
-applyTo: "src/**/*.go
+applyTo: "src/**/*.go,tests/acceptance/**/*.go"
 ---
 
 # Go Code Style and Project Structure
