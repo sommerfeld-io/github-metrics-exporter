@@ -41,6 +41,7 @@ const indexHTML = `<!DOCTYPE html>
     <ul>
       <li>Visit us <a href="https://github.com/sommerfeld-io/github-metrics-exporter/" target="_blank" rel="noopener noreferrer">on GitHub</a></li>
       <li>Build commit SHA: <code>{{.CommitSHA}}</code> (<a href="https://github.com/sommerfeld-io/github-metrics-exporter/tree/{{.CommitSHA}}" target="_blank" rel="noopener noreferrer">browse files for this commit</a>)</li>
+      <li>Listening on port: <code>{{.Port}}</code></li>
     </ul>
   </header>
 
@@ -55,13 +56,18 @@ const indexHTML = `<!DOCTYPE html>
 
 var indexTmpl = template.Must(template.New("index").Parse(indexHTML))
 
-func indexEndpointHandler(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path != "/" {
-		http.Error(w, "404 page not found", http.StatusNotFound)
-		return
+func indexHandler(port int) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/" {
+			http.Error(w, "404 page not found", http.StatusNotFound)
+			return
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_ = indexTmpl.Execute(w, struct {
+			CommitSHA string
+			Port      int
+		}{metrics.CommitSHA, port})
 	}
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_ = indexTmpl.Execute(w, struct{ CommitSHA string }{metrics.CommitSHA})
 }
 
 func healthzEndpointHandler(w http.ResponseWriter, r *http.Request) {
@@ -71,9 +77,10 @@ func healthzEndpointHandler(w http.ResponseWriter, r *http.Request) {
 
 // New sets up the HTTP server with all application routes: the index page,
 // the Prometheus metrics endpoint, and the health check endpoint.
-func New() *http.ServeMux {
+// The port is rendered on the root page so operators can confirm the active configuration.
+func New(port int) *http.ServeMux {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/", indexEndpointHandler)
+	mux.HandleFunc("/", indexHandler(port))
 	mux.Handle("/metrics", promhttp.Handler())
 	mux.HandleFunc("/healthz", healthzEndpointHandler)
 	return mux

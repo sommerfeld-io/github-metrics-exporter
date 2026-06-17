@@ -83,4 +83,4 @@ tasks:
     dir: *dir
     cmds:
       - task: build
-      - ./{{ .BINARY_NAME }}
+      - ./{{ .BINARY_NAME }} --config ghme-config.yml

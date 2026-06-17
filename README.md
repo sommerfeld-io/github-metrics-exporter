@@ -17,6 +17,28 @@ Provide insights into GitHub Actions, pipeline health and trends. Provide deep o
 - [Where to file issues](https://github.com/sommerfeld-io/github-metrics-exporter/issues)
 - [Project Board for Issues and Pull Requests](https://github.com/orgs/sommerfeld-io/projects/1/views/1)
 
+## Usage
+
+Run the exporter with Docker Compose. Create a `ghme-config.yml` configuration file (see [`src/ghme-config.yml`](src/ghme-config.yml) for a documented reference) and mount it into the container:
+
+```yaml
+services:
+  github-metrics-exporter:
+    image: sommerfeldio/github-metrics-exporter:latest
+    ports:
+      - 9400:9400
+    volumes:
+      - ./ghme-config.yml:/opt/ghme/ghme-config.yml:ro
+```
+
+The exporter exposes three endpoints once running:
+
+| Endpoint    | Description                        |
+|-------------|------------------------------------|
+| `/`         | HTML landing page with build info  |
+| `/metrics`  | Prometheus metrics                 |
+| `/healthz`  | Plain-text health check            |
+
 ## AI-Assisted Development
 
 This project is developed with the help of AI coding assistants. We use [Claude Code](https://code.claude.com) and [GitHub Copilot](https://github.com/features/copilot) in parallel.

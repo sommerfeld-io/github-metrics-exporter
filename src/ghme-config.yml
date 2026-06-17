@@ -1,0 +1,5 @@
+---
+## The network port on which the exporter HTTP server will listen. This setting is MANDATORY and
+## must be a valid integer (e.g., 1024-65535). Non-integer values (strings, floats, booleans) will
+## cause startup failure. The configured port will also be displayed on the web UI.
+port: 9400

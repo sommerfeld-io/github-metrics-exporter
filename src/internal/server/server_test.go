@@ -17,7 +17,7 @@ func setup(t *testing.T) *http.ServeMux {
 	if err := metrics.Register(reg); err != nil {
 		t.Fatalf("failed to register metrics: %v", err)
 	}
-	return server.New()
+	return server.New(9400)
 }
 
 func TestRootEndpointShouldReturnHTML(t *testing.T) {
@@ -114,6 +114,36 @@ func TestRootEndpointShouldContainDarkTheme(t *testing.T) {
 	body := rec.Body.String()
 	if !strings.Contains(body, "background-color") {
 		t.Error("expected dark theme CSS (background-color) in response body")
+	}
+}
+
+func TestRootEndpointShouldDisplayConfiguredPort(t *testing.T) {
+	reg := prometheus.NewRegistry()
+	if err := metrics.Register(reg); err != nil {
+		t.Fatalf("failed to register metrics: %v", err)
+	}
+	mux := server.New(8080)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	mux.ServeHTTP(rec, req)
+
+	if !strings.Contains(rec.Body.String(), "8080") {
+		t.Error("expected configured port 8080 to appear in the response body")
+	}
+}
+
+func TestRootEndpointShouldNotDisplayUnconfiguredPort(t *testing.T) {
+	reg := prometheus.NewRegistry()
+	if err := metrics.Register(reg); err != nil {
+		t.Fatalf("failed to register metrics: %v", err)
+	}
+	mux := server.New(8080)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	mux.ServeHTTP(rec, req)
+
+	if strings.Contains(rec.Body.String(), "9999") {
+		t.Error("port 9999 must not appear when server is configured with 8080")
 	}
 }
 

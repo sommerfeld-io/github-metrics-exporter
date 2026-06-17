@@ -22,12 +22,12 @@ ARG USER_ID=1000
 ARG GROUP_ID=1000
 
 RUN addgroup -g ${GROUP_ID} ${USER_NAME} \
-    && adduser -D -u ${USER_ID} -G ${USER_NAME} -h /opt/github-metrics-exporter ${USER_NAME} \
-    && chown -R ${USER_NAME}:${USER_NAME} /opt/github-metrics-exporter
+    && adduser -D -u ${USER_ID} -G ${USER_NAME} -h /opt/ghme ${USER_NAME} \
+    && chown -R ${USER_NAME}:${USER_NAME} /opt/ghme
 
-WORKDIR /opt/github-metrics-exporter
+WORKDIR /opt/ghme
 COPY --from=build /workspaces/github-metrics-exporter/src/github-metrics-exporter ./github-metrics-exporter
 
 USER ${USER_NAME}
 
-CMD ["./github-metrics-exporter"]
+CMD ["./github-metrics-exporter", "--config", "ghme-config.yml"]

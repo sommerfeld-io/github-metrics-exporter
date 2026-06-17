@@ -7,3 +7,7 @@ docs
 tests/inspec
 
 src/go/github-metrics-exporter
+
+## Ignore the ghme-config.yml file to avoid packaging default configuration with the container image.
+## Users should provide their own config file.
+src/ghme-config.yml

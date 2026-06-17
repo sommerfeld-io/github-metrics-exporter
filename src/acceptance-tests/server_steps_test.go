@@ -86,6 +86,13 @@ func (s *scenarioState) thePageSourceHTMLStyleShouldDeclareADarkBackgroundTheme(
 	return nil
 }
 
+func (s *scenarioState) thePageShouldDisplayTheConfiguredPort() error {
+	if !strings.Contains(s.body, "9400") {
+		return fmt.Errorf("expected response body to display the configured port (9400)")
+	}
+	return nil
+}
+
 func (s *scenarioState) theResponseBodyMustContainTheDefaultMetricWithACommitSHALabel(metric string) error {
 	if !strings.Contains(s.body, metric) {
 		return fmt.Errorf("expected response body to contain metric %q", metric)
@@ -109,5 +116,6 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^the page should contain a link to "([^"]*)"$`, s.thePageShouldContainALinkTo)
 	ctx.Step(`^the page should display the static build commit SHA$`, s.thePageShouldDisplayTheStaticBuildCommitSHA)
 	ctx.Step(`^the page source HTML style should declare a dark background theme$`, s.thePageSourceHTMLStyleShouldDeclareADarkBackgroundTheme)
+	ctx.Step(`^the page should display the configured port$`, s.thePageShouldDisplayTheConfiguredPort)
 	ctx.Step(`^the response body must contain the default metric "([^"]*)" with a commit_sha label$`, s.theResponseBodyMustContainTheDefaultMetricWithACommitSHALabel)
 }
