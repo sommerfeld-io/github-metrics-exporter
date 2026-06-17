@@ -35,6 +35,9 @@ The master instruction files live under `.github/` and are committed to the repo
 
 The symlinks are also committed to git. Still, they are created locally by running `task symlinks` (see `taskfile.yml` for the exact `ln` commands used).
 
+> [!NOTE]
+> Because this repository uses symlinks, it is intended to be worked on in a Linux environment. The devcontainer setup makes it possible to work on a Windows host since the dev container is Linux, and the actual development environment runs inside that container.
+
 ## Architecture Decisions
 
 All issues labeled as `ADR` [are tracked as GitHub issue](https://github.com/sommerfeld-io/github-metrics-exporter/issues?q=is%3Aissue+label%3AADR) and carry the respective label.
