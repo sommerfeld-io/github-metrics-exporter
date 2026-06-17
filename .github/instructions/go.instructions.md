@@ -1,5 +1,5 @@
 ---
-applyTo: "src/**/*.go,tests/acceptance/**/*.go"
+applyTo: "src/**/*.go"
 ---
 
 # Go Code Style and Project Structure
@@ -19,7 +19,7 @@ Apply these instructions to all Go code in `src/`.
 - Keep `src/main.go` lightweight and focused on orchestration such as loading config, wiring dependencies, and starting the app.
 - Put private application logic in `src/internal/**`.
 - Put non-private packages in other `src/**` packages with short, descriptive package names.
-- Keep acceptance tests in `tests/acceptance`, with Gherkin feature files in `tests/acceptance/features`.
+- Keep acceptance tests in `src/acceptance-tests/`, with Gherkin feature files in `src/acceptance-tests/features/`. Acceptance tests are part of the main Go module - no separate `go.mod`.
 
 ## Naming
 
@@ -100,8 +100,12 @@ if err := someFunction(); err != nil {
 ### Acceptance tests and Gherkin feature files
 
 - `.feature` files define GoDog acceptance tests. They are **not** used to derive unit tests.
-- Step definitions live in `tests/acceptance/*_steps_test.go`.
-- Wire the GoDog suite in `tests/acceptance/suite_test.go`.
-- Acceptance test Go code in `tests/acceptance/` follows the same TDD discipline as production
-  code. Any non-trivial helper extracted into a non-test file must have its own `*_test.go` unit
-  tests.
+- Step definitions live in `src/acceptance-tests/*_steps_test.go`.
+- Wire the GoDog suite in `src/acceptance-tests/suite_test.go`.
+- Acceptance test Go code follows the same TDD discipline as production code. Any non-trivial
+  helper extracted into a non-test file must have its own `*_test.go` unit tests.
+- Unit test coverage is measured with `go test ./internal/...` and written to `coverage.out`.
+  Acceptance tests are run separately with `go test -coverpkg=./internal/... ./acceptance-tests/...`,
+  write a second report to `acceptance-coverage.out`, and gate the `build` task. The two coverage
+  files are intentionally separate signals: `coverage.out` measures branch-level unit test
+  correctness; `acceptance-coverage.out` measures which internal lines are reachable end-to-end.

@@ -67,7 +67,7 @@ services:
       - -c
       - |
         npm install -g gherkin-lint
-        gherkin-lint tests/acceptance/features
+        gherkin-lint src/acceptance-tests/features
     tty: *tty
 
   github-metrics-exporter-lint-dockerfile:

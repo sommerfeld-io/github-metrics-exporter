@@ -14,15 +14,6 @@ RUN task build
 
 
 
-FROM build AS acceptance-test
-WORKDIR /workspaces/github-metrics-exporter
-COPY tests /workspaces/github-metrics-exporter/tests
-WORKDIR /workspaces/github-metrics-exporter/tests/acceptance
-RUN go mod download && go test -v ./...
-
-
-
-
 FROM alpine:3.24.0 AS run
 LABEL maintainer="sebastian@sommerfeld.io"
 

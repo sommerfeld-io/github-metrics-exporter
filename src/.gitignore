@@ -1,2 +1,6 @@
 github-metrics-exporter
+
 coverage.out
+coverage.html
+acceptance-coverage.out
+acceptance-coverage.html

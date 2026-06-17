@@ -31,11 +31,12 @@ All Go work runs from `src/`. The root `taskfile.yml` delegates to `src/taskfile
 
 ```bash
 # From repo root
-task go:build               # lint + vet + test + compile binary (full pipeline)
-task go:test-with-coverage  # run unit tests with coverage report
-task go:lint                # run golangci-lint
-task go:run                 # build then run the binary locally (port 9400)
-task symlinks               # (re)create CLAUDE.md and src/CLAUDE.md symlinks
+task go:build            # lint + vet + test + compile binary (full pipeline)
+task go:test             # run unit tests with coverage report
+task go:test:acceptance  # run acceptance tests with end-to-end coverage
+task go:lint             # run golangci-lint
+task go:run              # build then run the binary locally (port 9400)
+task symlinks            # (re)create CLAUDE.md and src/CLAUDE.md symlinks
 
 # From src/
 go test ./...                           # run all unit tests

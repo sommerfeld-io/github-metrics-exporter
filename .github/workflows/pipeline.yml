@@ -213,7 +213,7 @@ jobs:
       - name: Test with coverage report
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: task go:test-with-coverage
+        run: task go:test
         shell: bash
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@v8.2.0
