@@ -1,37 +1,15 @@
-# GitHub Copilot Instructions
-
-## Commit Messages: Conventional Commits
-
-Always use Conventional Commits for every commit message.
-
-**Format:** `<type>(optional scope): <description>`
-
-| Type | Effect | When to use |
-|------|--------|-------------|
-| `fix` | PATCH release | Patches a bug |
-| `feat` | MINOR release | Introduces a new feature |
-| `BREAKING CHANGE` footer | MAJOR release | Introduces a breaking API change |
-| `build`, `chore`, `ci`, `docs`, `style`, `refactor`, `perf`, `test` | No release | All other changes |
-
-**Rules:**
-- A scope may be added in parentheses for extra context: `feat(parser): add ability to parse arrays`. A scope may **NOT** contain a slash (`/`).
-- Breaking changes must include `BREAKING CHANGE:` in the footer: `feat: drop support for Node 6`
-- Commit message titles must also match the project pattern: `^(fix|feat|build|chore|ci|docs|style|refactor|perf|test)/[a-z0-9._-]+$`
-
-Write commit messages using the Conventional Commits format, ensuring the header (`type(scope): summary`) is clear and descriptive, as it will be displayed on GitHub release pages and used for changelogs. Focus the header on user-visible, meaningful change descriptions and avoid vague wording. Always document breaking changes explicitly in the footer using `BREAKING CHANGE:` (do not use the `!` notation).
-
-## Go Code Style and Project Structure
+# Go Code Style and Project Structure
 
 Apply these instructions to all Go code in `src/`.
 
-### Style priorities
+## Style priorities
 
 - Prefer clarity, simplicity, maintainability, and consistency over clever code.
 - Use standard language features and the standard library before introducing extra abstraction or dependencies.
 - Keep local style consistent with nearby code unless that would worsen a deviation from the Google style guide.
 - Format all Go code with `gofmt`; keep imports compatible with `goimports`.
 
-### Project structure
+## Project structure
 
 - Keep all Go source code in `src/`.
 - Keep `src/main.go` lightweight and focused on orchestration such as loading config, wiring dependencies, and starting the app.
@@ -39,7 +17,7 @@ Apply these instructions to all Go code in `src/`.
 - Put non-private packages in other `src/**` packages with short, descriptive package names.
 - Keep acceptance tests in `tests/acceptance`, with Gherkin feature files in `tests/acceptance/features`.
 
-### Naming
+## Naming
 
 - Use short, descriptive, lowercase package names. Avoid underscores, dashes, mixed case, generic names like `util`, and unnecessary plurals.
 - Use `PascalCase` for exported identifiers and `camelCase` for unexported identifiers.
@@ -48,14 +26,14 @@ Apply these instructions to all Go code in `src/`.
 - Use short, consistent receiver names.
 - Keep interface names small and idiomatic; define interfaces where they are consumed.
 
-### Functions and methods
+## Functions and methods
 
 - Keep functions small and focused on one responsibility.
 - Prefer helper functions and better names over line-by-line comments that only restate the code.
 - Use comments to explain why logic exists, important edge cases, or non-obvious trade-offs.
 - Prefer the simplest implementation that keeps call sites easy to understand and hard to misuse.
 
-### Comments and documentation
+## Comments and documentation
 
 - Use GoDoc-style `//` comments.
 - Comment all exported packages, types, variables, constants, functions, and methods.
@@ -63,7 +41,7 @@ Apply these instructions to all Go code in `src/`.
 - Avoid redundant comments that only describe what the code already says.
 - Add a `PACKAGE.md` file to document the purpose of each package.
 
-### Line-level comments
+## Line-level comments
 
 Avoid commenting on *what* the code does. Use comments to explain the *why* when the logic is non-obvious or complex. Prefer refactoring complex logic into well-named helper functions over adding inline comments.
 
@@ -80,7 +58,7 @@ if err := checkRestaurantExists(restaurant); err != nil {
 }
 ```
 
-### Imports
+## Imports
 
 Split imports into three groups separated by blank lines:
 
@@ -88,7 +66,7 @@ Split imports into three groups separated by blank lines:
 2. Third-party dependencies
 3. Local packages from `github.com/sommerfeld-io/github-metrics-exporter/src/...`
 
-### Error handling
+## Error handling
 
 - Return `error` as the last return value from functions that can fail.
 - Handle errors explicitly and early. Prefer the usual Go pattern:
@@ -107,7 +85,7 @@ if err := someFunction(); err != nil {
 - Log errors to `stderr` and all non-error output to `stdout`, using structured logging whenever possible.
 - Reserve `panic` for truly unrecoverable programmer or runtime faults, not normal control flow.
 
-### Testing
+## Testing
 
 - Follow TDD: write or update the test first when practical.
 - Keep unit tests next to the code they verify and use the `_test.go` suffix.
