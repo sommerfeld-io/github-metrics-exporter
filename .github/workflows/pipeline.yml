@@ -108,6 +108,35 @@ jobs:
         run: docker compose up "$IMAGE_NAME-lint-dockerfile" --exit-code-from "$IMAGE_NAME-lint-dockerfile"
         shell: bash
 
+  sonar-analysis:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          submodules: true
+          fetch-depth: 0
+      - name: Install Task
+        uses: arduino/setup-task@v2.0.0
+        with:
+          version: 3.x
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: src/go.mod
+          cache-dependency-path: src/go.sum
+      - name: Test with coverage report
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: task go:test
+        shell: bash
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v8.2.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
   # ----- Build images stage ----------------------------------------------------------------------
 
@@ -193,37 +222,6 @@ jobs:
           write-comment: true
           only-severities: critical,high,medium
           github-token: ${{ secrets.GITHUB_TOKEN }}
-
-  sonar-analysis:
-    runs-on: ubuntu-latest
-    needs: [
-      'build-image',
-    ]
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
-        with:
-          submodules: true
-          fetch-depth: 0
-      - name: Install Task
-        uses: arduino/setup-task@v2.0.0
-        with:
-          version: 3.x
-      - name: Set up Go
-        uses: actions/setup-go@v6
-        with:
-          go-version-file: src/go.mod
-          cache-dependency-path: src/go.sum
-      - name: Test with coverage report
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: task go:test
-        shell: bash
-      - name: SonarQube Scan
-        uses: SonarSource/sonarqube-scan-action@v8.2.0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
   # ----- Deploy ----------------------------------------------------------------------
 
