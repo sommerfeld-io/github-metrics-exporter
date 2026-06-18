@@ -12,24 +12,29 @@ import (
 	"github.com/sommerfeld-io/github-metrics-exporter/internal/server"
 )
 
-func main() {
-	configPath := flag.String("config", "", "path to YAML configuration file (required)")
-	flag.Parse()
-
-	if *configPath == "" {
-		log.Fatal("--config flag is required")
+func run(configPath string, reg prometheus.Registerer, listenAndServe func(string, http.Handler) error) error {
+	if configPath == "" {
+		return fmt.Errorf("--config flag is required")
 	}
 
-	cfg, err := config.Load(*configPath)
+	cfg, err := config.Load(configPath)
 	if err != nil {
-		log.Fatalf("failed to load config: %v", err)
+		return fmt.Errorf("failed to load config: %w", err)
 	}
 
-	if err := metrics.Register(prometheus.DefaultRegisterer); err != nil {
-		log.Fatalf("failed to register metrics: %v", err)
+	if err := metrics.Register(reg); err != nil {
+		return fmt.Errorf("failed to register metrics: %w", err)
 	}
 
 	srv := server.New(cfg.Port)
 	log.Printf("Starting github-metrics-exporter on :%d", cfg.Port)
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", cfg.Port), srv))
+	return listenAndServe(fmt.Sprintf(":%d", cfg.Port), srv)
+}
+
+func main() {
+	configPath := flag.String("config", "", "path to YAML configuration file (required)")
+	flag.Parse()
+	if err := run(*configPath, prometheus.DefaultRegisterer, http.ListenAndServe); err != nil {
+		log.Fatal(err)
+	}
 }

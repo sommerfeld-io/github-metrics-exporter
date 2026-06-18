@@ -147,8 +147,10 @@ jobs:
             org.opencontainers.image.title=${{ env.image-name }}
             org.opencontainers.image.description=${{ env.image-name }}
             org.opencontainers.image.vendor=sommerfeld-io
+            org.opencontainers.image.authors=sebastian@sommerfeld.io
             org.opencontainers.image.documentation=https://sommerfeld-io.github.io/container-images/images/${{ env.image-name }}
-            dev.containers.source=https://github.com/sommerfeld-io/container-images
+            org.opencontainers.image.base.name=docker.io/library/alpine:3.24.0
+            dev.containers.source=https://github.com/sommerfeld-io/github-metrics-exporter
             dev.containers.release=${{ github.sha }}
             version=${{ github.sha }}
             org.opencontainers.image.licenses=MIT

@@ -52,7 +52,7 @@ tasks:
     desc: Run unit tests with coverage report
     dir: *dir
     cmds:
-      - go test -v -coverprofile=coverage.out ./internal/...
+      - go test -v -coverprofile=coverage.out . ./internal/...
       - go tool cover -func=coverage.out
 
   test:acceptance:

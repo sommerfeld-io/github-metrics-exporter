@@ -17,9 +17,13 @@ Provide insights into GitHub Actions, pipeline health and trends. Provide deep o
 - [Where to file issues](https://github.com/sommerfeld-io/github-metrics-exporter/issues)
 - [Project Board for Issues and Pull Requests](https://github.com/orgs/sommerfeld-io/projects/1/views/1)
 
+## Software Tags and Versioning
+
+Learn about our tagging policy and the difference between rolling tags and immutable tags [on our documentation page⁠](https://github.com/sommerfeld-io/.github/blob/main/docs/tags-and-versions.md).
+
 ## Usage
 
-Run the exporter with Docker Compose. Create a `ghme-config.yml` configuration file (see [`src/ghme-config.yml`](src/ghme-config.yml) for a documented reference) and mount it into the container:
+Run the exporter with Docker Compose. Create a `ghme-config.yml` configuration file (see `src/ghme-config.yml` on GitHub for a documented reference) and mount it into the container:
 
 ```yaml
 services:
@@ -39,30 +43,9 @@ The exporter exposes three endpoints once running:
 | `/metrics`  | Prometheus metrics                 |
 | `/healthz`  | Plain-text health check            |
 
-## AI-Assisted Development
-
-This project is developed with the help of AI coding assistants. We use [Claude Code](https://code.claude.com) and [GitHub Copilot](https://github.com/features/copilot) in parallel.
-
-AI assistants are guided by instruction files that define coding conventions, commit message rules, and project-specific guidelines. We maintain a single source of truth for these instructions and use symlinks so that each tool reads from the same file:
-
-| Symlink         | Points to (master file)                   |
-|-----------------|-------------------------------------------|
-| `CLAUDE.md`     | `.github/copilot-instructions.md`         |
-| `src/CLAUDE.md` | `.github/instructions/go.instructions.md` |
-
-The master instruction files live under `.github/` and are committed to the repository:
-
-- `.github/copilot-instructions.md` - project-wide conventions (commit messages, general style)
-- `.github/instructions/go.instructions.md` - Go-specific coding guidelines for the `src/` subtree
-
-The symlinks are also committed to git. Still, they are created locally by running `task symlinks` (see `taskfile.yml` for the exact `ln` commands used).
-
-> [!NOTE]
-> Because this repository uses symlinks, it is intended to be worked on in a Linux environment. The devcontainer setup makes it possible to work on a Windows host since the dev container is Linux, and the actual development environment runs inside that container.
-
 ## Architecture Decisions
 
-All issues labeled as `ADR` [are tracked as GitHub issue](https://github.com/sommerfeld-io/github-metrics-exporter/issues?q=is%3Aissue+label%3AADR) and carry the respective label.
+All issues labeled as `ADR` [are tracked as GitHub issue](https://github.com/sommerfeld-io/github-metrics-exporter/issues?q=is%3Aissue+label%3AADR).
 
 ## Risks and Technical Debts
 
