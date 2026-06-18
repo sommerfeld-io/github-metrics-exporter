@@ -39,4 +39,10 @@ next i sorted issues into milestones because lots of ideas meant i had different
 
 ## Getting into a rhythm (= using the SDLC and pipeline to have Ai implement features)
 
-> **TODO** ...
+Implemented things very quickly with AI. The GitHub issues already existed in the project. Implementation speed is extremely high, especially for topics where you would first have to learn something yourself (a specific library, for example).
+
+But you have to be careful how you use it. I quickly went off on unnecessary tangents and started optimizing logging and refactoring before I even had the first feature running. The config file was another example. Probably more useful than logging optimization, but since the tool was initially just for myself, hardcoded configuration would have been good enough at first.
+
+So it is very easy to get sidetracked and loose sight of the actual goals becase "just impementing this little fix/refactoring" is so easy and fast. 
+
+That raises the question of how much of a prototype you want versus whether you're already trying to build something more serious. From that perspective, the config file was probably a sensible decision after all and getting sidetracked to the config file was a good thing.
