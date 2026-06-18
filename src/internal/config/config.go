@@ -32,20 +32,29 @@ func Load(path string) (*Config, error) {
 		return nil, errors.New(`config: required field "port" is missing`)
 	}
 
-	switch v := portRaw.(type) {
+	port, err := parsePort(portRaw)
+	if err != nil {
+		return nil, err
+	}
+	return &Config{Port: port}, nil
+}
+
+// parsePort converts the raw YAML value for the port field into an int.
+func parsePort(raw interface{}) (int, error) {
+	switch v := raw.(type) {
 	case nil:
-		return nil, errors.New(`config: "port" must not be null or empty`)
+		return 0, errors.New(`config: "port" must not be null or empty`)
 	case string:
-		return nil, fmt.Errorf(`config: "port" must be a raw integer, not a string (got %q)`, v)
+		return 0, fmt.Errorf(`config: "port" must be a raw integer, not a string (got %q)`, v)
 	case float64:
-		return nil, fmt.Errorf(`config: "port" must be an integer; floating-point numbers are not allowed (got %v)`, v)
+		return 0, fmt.Errorf(`config: "port" must be an integer; floating-point numbers are not allowed (got %v)`, v)
 	case bool:
-		return nil, fmt.Errorf(`config: "port" must be an integer, not a boolean (got %v)`, v)
+		return 0, fmt.Errorf(`config: "port" must be an integer, not a boolean (got %v)`, v)
 	case int:
-		return &Config{Port: v}, nil
+		return v, nil
 	case int64:
-		return &Config{Port: int(v)}, nil
+		return int(v), nil
 	default:
-		return nil, fmt.Errorf(`config: "port" has unexpected type %T`, v)
+		return 0, fmt.Errorf(`config: "port" has unexpected type %T`, v)
 	}
 }
