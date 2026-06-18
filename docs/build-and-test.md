@@ -16,13 +16,13 @@ All Go work is driven through [Task](https://taskfile.dev). The root `taskfile.y
 |  +----------+   | max: 10)    |   |          |   +----------+-------------+ |
 |                 +-------------+   +----------+              |               |
 |                                                             |               |
-|  +----------+   +----------+   +----------+                |                |
-|  | go mod   |   |  go fmt  |   |  go vet  |<---------------+                |
+|  +----------+   +----------+   +----------+                 |               |
+|  | go mod   |   |  go fmt  |   |  go vet  |<----------------+               |
 |  | tidy     +-->|          +-->|          |                                 |
 |  +----------+   +----------+   +----+-----+                                 |
 |                                     |                                       |
-|                      +--------------+                                       |
-|                      v                                                      |
+|                         +-----------+                                       |
+|                         v                                                   |
 |  +--------------+   +-------------------+   +--------------------------+    |
 |  | unit tests   +-->| acceptance tests  +-->| go build                 |    |
 |  | ./internal/  |   | ./acceptance-     |   | -ldflags CommitSHA=...   |    |
@@ -42,172 +42,62 @@ Acceptance tests are GoDog (Cucumber/Gherkin) tests that live in `src/acceptance
 The acceptance tests are instrumented with `-coverpkg=./internal/...` and write a second coverage report to `src/acceptance-coverage.out`. This is a separate signal from `coverage.out`: it shows which lines in `internal/` are reachable end-to-end through the HTTP layer, not whether individual branches are exercised by unit tests. The two reports are intentionally kept apart - merging them would inflate unit-test coverage numbers and obscure gaps in either test suite.
 
 ```ditaa
-+---------------------------+          +----------------------------------+
-|       TestMain            |          |  Gherkin scenario                |
-|                           |          |                                  |
-|  metrics.Register(        |          |  Given the exporter is running   |
-|    prometheus.Default...) |          |  When a user requests "/"        |
-|                           |    HTTP  |  Then status should be 200       |
-|  httptest.NewServer(  +------------>|  And Content-Type is text/html   |
-|    server.New())          |  calls   |                                  |
-|                           |          +----------------------------------+
++---------------------------+          +---------------------------------+
+|       TestMain            |          |  Gherkin scenario               |
+|                           |          |                                 |
+|  metrics.Register(        |          |  Given the exporter is running  |
+|    prometheus.Default...) |          |  When a user requests "/"       |
+|                           |  HTTP    |  Then status should be 200      |
+|  httptest.NewServer(      +--------->|  And Content-Type is text/html  |
+|    server.New())          |  calls   |                                 |
+|                           |          +---------------------------------+
 |  baseURL = srv.URL        |
 +---------------------------+
 ```
 
-Both test kinds are mandatory gates inside `task go:build`. The binary is only compiled after
-both pass.
-
----
+Both test kinds are mandatory gates inside `task go:build`. The binary is only compiled after both pass.
 
 ## Building the Docker Image
 
-The `Dockerfile` uses a two-stage build. The `build` stage uses the full Go toolchain image,
-copies the source and the `.git` directory (needed for the linker-injected commit SHA), then
-runs `task build`. Because `task build` calls both the unit tests and the acceptance tests
-internally, all quality gates run inside Docker before the binary is produced. The `run` stage
-starts from a minimal Alpine image and contains only the compiled binary and a dedicated
-non-root user (`ghme`, UID 1000).
+The `Dockerfile` uses a two-stage build. The `build` stage uses the full Go toolchain image, copies the source and the `.git` directory (needed for the linker-injected commit SHA), then runs `task build`. Because `task build` calls both the unit tests and the acceptance tests internally, all quality gates run inside Docker before the binary is produced. The `run` stage starts from a minimal Alpine image and contains only the compiled binary and a dedicated non-root user (`ghme`, UID 1000).
 
 ```ditaa
-  +--------------------------------------+
-  | FROM golang:1.26-alpine AS build     |
-  |                                      |
-  |  COPY .git + src/                    |
-  |  RUN task build                      |
-  |    :  cleanup                        |
-  |    :  complexity + licenses + lint   |
-  |    :  unit tests                     |
-  |    :  acceptance tests               |
-  |    :  go build -ldflags CommitSHA=.. |
-  |                                      |
-  +----------------+---------------------+
+  +---------------------------------------+
+  | FROM golang:1.26-alpine AS build      |
+  |                                       |
+  |  COPY .git + src/                     |
+  |  RUN task build                       |
+  |    :  cleanup                         |
+  |    :  complexity + licenses + lint    |
+  |    :  unit tests                      |
+  |    :  acceptance tests                |
+  |    :  go build -ldflags CommitSHA=..  |
+  |                                       |
+  +----------------+----------------------+
                    | binary only
                    v
-  +--------------------------------------+
-  | FROM alpine AS run                   |
-  |                                      |
-  |  adduser ghme (UID 1000)             |
-  |  COPY binary from build stage        |
-  |  CMD ./github-metrics-exporter       |
-  |  (port 9400)                         |
-  +--------------------------------------+
+  +---------------------------------------+
+  | FROM alpine AS run                    |
+  |                                       |
+  |  adduser ghme (UID 1000)              |
+  |  COPY binary from build stage         |
+  |  CMD ./github-metrics-exporter        |
+  |  (port 9400)                          |
+  +---------------------------------------+
 ```
 
-Locally, `task docker:build` first runs all project-wide linters (YAML, Markdown, Gherkin, file
-names, and others via Docker Compose services), then lints the Dockerfile itself, and finally
-calls `docker compose build`. This is the full local equivalent of the CI pipeline.
-
----
+Locally, `task docker:build` first runs all project-wide linters (YAML, Markdown, Gherkin, file names, and others via Docker Compose services), then lints the Dockerfile itself, and finally calls `docker compose build`. This is the full local equivalent of the CI pipeline.
 
 ## CI/CD Pipeline
 
 ### Commit pipeline
 
-The commit pipeline (`pipeline.yml`) triggers on every push to `main` and on pull requests
-targeting `main`. Documentation-only changes (`.md` files, `docs/`) skip the pipeline entirely.
-A weekly scheduled run on Wednesdays at 04:00 UTC also fires the full pipeline regardless of
-changes, to catch upstream dependency regressions.
+The commit pipeline answers one question: can this code be integrated into `main` without breaking the app? Every change that touches the application is automatically built and tested. If any quality gate fails, the change does not advance. Automated tests are the primary signal here - they exist in this pipeline specifically to catch regressions in code that has not yet been released.
 
-All lint jobs run in parallel. The Docker image build only starts after every lint job passes.
-
-```ditaa
-  push to main / pull request / schedule
-                    |
-                    v
-  +-----------------+-----------------+------------------+
-  |                 |                 |                  |
-  v                 v                 v                  |
-+-----------+  +----------+  +----------------+         |
-| shellcheck|  | lint     |  | lint-dockerfile|         |
-|           |  | (matrix: |  |                |         |
-|           |  | yaml,    |  |                |         |
-|           |  | workflows|  |                |         |
-|           |  | filenames|  |                |         |
-|           |  | folders  |  |                |         |
-|           |  | gherkin  |  |                |         |
-|           |  | md-links)|  |                |         |
-+-----------+  +----------+  +----------------+         |
-        |            |                |                  |
-        +------------+----------------+                  |
-                     |                                   |
-                     v                                   |
-          +------------------------+                     |
-          | build-image            |                     |
-          | docker build & push    |                     |
-          | tag: :<commit-sha>     |                     |
-          | (includes SBOM +       |                     |
-          |  provenance)           |                     |
-          +---+--------+-----------+                     |
-              |        |                                 |
-              v        v                                 |
-  +-------------+  +----------------+                   |
-  | docker-scout|  | sonar-analysis |                   |
-  | compare vs  |  | task go:test   |                   |
-  | :latest,    |  | + SonarQube    |                   |
-  | post PR     |  | scan           |                   |
-  | comment     |  +----------------+                   |
-  +------+------+                                       |
-         |                                              |
-         v  (main branch only)                          |
-  +--------------------+                                |
-  | publish-edge       |                                |
-  | retag :sha -> :edge|                                |
-  +---+----------+-----+                                |
-      |          |                                      |
-      v          v (main, not dependabot)               |
-  +--------+  +----------------+                        |
-  | cleanup|  | release-code   |                        |
-  | delete |  | semantic       |                        |
-  | :sha   |  | release +      |                        |
-  | from   |  | git tag        |                        |
-  | DockerH|  +----------------+                        |
-  +--------+                                            |
-```
-
-The `build-image` step builds and immediately pushes the image tagged with the full Git commit
-SHA. This SHA-tagged image is ephemeral - it is cleaned up by `cleanup-dockerhub` at the end of
-every run. The `publish-edge` step re-tags that image as `:edge` on the Docker Hub registry, so
-`:edge` always reflects the latest passing commit on `main`.
-
-The `sonar-analysis` job re-runs `task go:test` to produce a fresh `coverage.out` and then
-uploads the results to SonarQube alongside a full source scan. The `docker-scout` job compares
-the new image against the current `:latest` for vulnerability regressions and posts the
-comparison as a pull-request comment.
-
-The `release-code` job calls a shared reusable workflow from `sommerfeld-io/.github` that
-handles semantic versioning, changelog generation, and GitHub Release creation based on
-Conventional Commit messages.
+When all gates pass on `main`, the pipeline also publishes a release candidate as the `:edge` image on Docker Hub. This gives integration consumers a stable, always-up-to-date image that reflects the tip of `main`, without committing to a numbered release.
 
 ### Release pipeline
 
-A GitHub Release being created triggers `release.yml`. At that point the `:edge` image - which
-has already passed every gate in the commit pipeline - is promoted to the release version tag and
-to `:latest`. No rebuild occurs; only the tag is added to the existing manifest.
+The release pipeline promotes a release candidate to a real release. Its job is not to rebuild or re-test from scratch - the `:edge` image that enters this pipeline has already passed every quality gate in the commit pipeline. Instead, the release pipeline handles everything that needs to happen at the moment a version becomes official: updating Docker Hub metadata, publishing release notes, and running a final set of tests against the released image to confirm the published artifact behaves as expected.
 
-```ditaa
-  GitHub Release created (tag: v1.x.y)
-                   |
-       +-----------+-----------+
-       |                       |
-       v                       v
-  +--------------------+  +----------------------+
-  | update-release-    |  | publish-release      |
-  | notes              |  |                      |
-  |                    |  | :edge --> :1.x.y     |
-  | (shared workflow)  |  | :edge --> :latest    |
-  +--------------------+  | update DockerHub     |
-                          | description          |
-                          +----------+-----------+
-                                     |
-                                     v
-                          +----------------------+
-                          | docker-scout         |
-                          | CVE scan :latest     |
-                          | upload SARIF to      |
-                          | GitHub Security tab  |
-                          +----------------------+
-```
-
-After a release the `:latest` tag on Docker Hub always points to the most recent stable version,
-and the `:edge` tag continues to track the tip of `main` for integration consumers.
+After a release, `:latest` on Docker Hub always points to the most recent stable version, and `:edge` continues to track the tip of `main`.
