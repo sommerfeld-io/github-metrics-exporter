@@ -1,5 +1,8 @@
-FROM golang:1.26.4-alpine3.24 AS build
+FROM --platform=$BUILDPLATFORM golang:1.26.4-alpine3.24 AS build
 LABEL maintainer="sebastian@sommerfeld.io"
+
+ARG TARGETOS
+ARG TARGETARCH
 
 RUN apk add --no-cache curl git \
     && sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b /usr/local/bin

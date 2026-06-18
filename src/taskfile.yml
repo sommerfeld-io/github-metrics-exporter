@@ -67,16 +67,16 @@ tasks:
     dir: *dir
     cmds:
       - task: cleanup
-      - task: complexity
-      - task: licenses
-      - task: lint
-      - task: vulncheck
       - go mod tidy
       - go fmt
       - go vet
       - task: test
       - task: test:acceptance
-      - go build -ldflags "-X github.com/sommerfeld-io/github-metrics-exporter/internal/metrics.CommitSHA=$(git rev-parse HEAD)" -o {{ .BINARY_NAME }}
+      - task: complexity
+      - task: licenses
+      - task: lint
+      - task: vulncheck
+      - CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -ldflags "-X github.com/sommerfeld-io/github-metrics-exporter/internal/metrics.CommitSHA=$(git rev-parse HEAD)" -o {{ .BINARY_NAME }}
 
   run:
     desc: Run the {{ .BINARY_NAME }} binary

@@ -44,4 +44,5 @@ tasks:
   docker:run:
     desc: Run container COMPOSE_SERVICE
     cmds:
+      - task: docker:build
       - docker compose up {{ .COMPOSE_SERVICE }}
