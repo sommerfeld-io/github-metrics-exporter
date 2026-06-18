@@ -25,6 +25,21 @@ Always use Conventional Commits for every commit message.
 
 Write commit messages using the Conventional Commits format, ensuring the header (`type(scope): summary`) is clear and descriptive, as it will be displayed on GitHub release pages and used for changelogs. Focus the header on user-visible, meaningful change descriptions and avoid vague wording. Always document breaking changes explicitly in the footer using `BREAKING CHANGE:` (do not use the `!` notation).
 
+## Protected Files
+
+Certain files in this repository define the build, test, and release infrastructure. Unintentional modifications to these files can introduce security regressions, silent build breakages, or bypass the quality checks that protect the codebase.
+
+**AI agents MUST NOT modify the following files or directories under any circumstances, unless the user has explicitly and unambiguously asked for a change to these specific files:**
+
+- `Dockerfile` — container image definition
+- `.github/workflows/**` — all GitHub Actions workflow files
+
+This restriction applies even when a change to one of these files would make the current task easier or would cause a lint check or test to pass. The build and test infrastructure exists to verify changes, not to be adjusted in response to them.
+
+**If a lint check, test, or CI step fails:** fix the application code or configuration, not the pipeline. Never modify a workflow file or the Dockerfile to work around a failure.
+
+**The only exception** is when the user's message explicitly names one of these files or directories as the target of the requested change (for example: "update the release workflow" or "add a new step to pipeline.yml").
+
 ## Development Commands
 
 All Go work runs from `src/`. The root `taskfile.yml` delegates to `src/taskfile.yml` via the `go:` namespace.
