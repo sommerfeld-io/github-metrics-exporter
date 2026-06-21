@@ -28,7 +28,49 @@ func noopListen(addr string, handler http.Handler) error {
 	return nil
 }
 
+func setValidGitHubToken(t *testing.T) {
+	t.Helper()
+	t.Setenv("GITHUB_TOKEN", "test-token-for-unit-tests")
+}
+
+func TestRunShouldReturnErrorWhenGITHUBTOKENIsMissing(t *testing.T) {
+	t.Setenv("GITHUB_TOKEN", "")
+	err := run("", prometheus.NewRegistry(), noopListen)
+	if err == nil {
+		t.Error("expected error when GITHUB_TOKEN is missing, got nil")
+	}
+}
+
+func TestRunShouldNotReturnNilWhenGITHUBTOKENIsMissing(t *testing.T) {
+	t.Setenv("GITHUB_TOKEN", "")
+	err := run("", prometheus.NewRegistry(), noopListen)
+	if err == nil {
+		t.Error("error must not be nil when GITHUB_TOKEN is missing")
+	}
+}
+
+func TestRunShouldReturnErrorWhenGITHUBTOKENIsEmptyString(t *testing.T) {
+	t.Setenv("GITHUB_TOKEN", "")
+	path := writeConfig(t, "port: 9400\n")
+	err := run(path, prometheus.NewRegistry(), noopListen)
+	if err == nil {
+		t.Error("expected error when GITHUB_TOKEN is an empty string, got nil")
+	}
+}
+
+func TestRunShouldReturnErrorMessageMentioningGITHUBTOKEN(t *testing.T) {
+	t.Setenv("GITHUB_TOKEN", "")
+	err := run("", prometheus.NewRegistry(), noopListen)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "GITHUB_TOKEN") {
+		t.Errorf("expected error message to mention GITHUB_TOKEN, got %q", err.Error())
+	}
+}
+
 func TestRunShouldReturnErrorWhenConfigPathIsEmpty(t *testing.T) {
+	setValidGitHubToken(t)
 	err := run("", prometheus.NewRegistry(), noopListen)
 	if err == nil {
 		t.Error("expected error when config path is empty, got nil")
@@ -36,6 +78,7 @@ func TestRunShouldReturnErrorWhenConfigPathIsEmpty(t *testing.T) {
 }
 
 func TestRunShouldNotReturnNilWhenConfigPathIsEmpty(t *testing.T) {
+	setValidGitHubToken(t)
 	err := run("", prometheus.NewRegistry(), noopListen)
 	if err == nil {
 		t.Error("error must not be nil when config path is empty")
@@ -43,6 +86,7 @@ func TestRunShouldNotReturnNilWhenConfigPathIsEmpty(t *testing.T) {
 }
 
 func TestRunShouldReturnErrorMessageMentioningConfigFlag(t *testing.T) {
+	setValidGitHubToken(t)
 	err := run("", prometheus.NewRegistry(), noopListen)
 	if err == nil {
 		t.Fatal("expected error, got nil")
@@ -53,6 +97,7 @@ func TestRunShouldReturnErrorMessageMentioningConfigFlag(t *testing.T) {
 }
 
 func TestRunShouldReturnErrorWhenConfigFileDoesNotExist(t *testing.T) {
+	setValidGitHubToken(t)
 	err := run("/nonexistent/path/config.yml", prometheus.NewRegistry(), noopListen)
 	if err == nil {
 		t.Error("expected error when config file does not exist, got nil")
@@ -60,6 +105,7 @@ func TestRunShouldReturnErrorWhenConfigFileDoesNotExist(t *testing.T) {
 }
 
 func TestRunShouldWrapConfigLoadError(t *testing.T) {
+	setValidGitHubToken(t)
 	err := run("/nonexistent/path/config.yml", prometheus.NewRegistry(), noopListen)
 	if err == nil {
 		t.Fatal("expected error, got nil")
@@ -70,6 +116,7 @@ func TestRunShouldWrapConfigLoadError(t *testing.T) {
 }
 
 func TestRunShouldReturnErrorWhenMetricsRegistrationFails(t *testing.T) {
+	setValidGitHubToken(t)
 	original := metrics.MetricPrefix
 	metrics.MetricPrefix = ""
 	t.Cleanup(func() { metrics.MetricPrefix = original })
@@ -82,6 +129,7 @@ func TestRunShouldReturnErrorWhenMetricsRegistrationFails(t *testing.T) {
 }
 
 func TestRunShouldWrapMetricsRegistrationError(t *testing.T) {
+	setValidGitHubToken(t)
 	original := metrics.MetricPrefix
 	metrics.MetricPrefix = ""
 	t.Cleanup(func() { metrics.MetricPrefix = original })
@@ -97,6 +145,7 @@ func TestRunShouldWrapMetricsRegistrationError(t *testing.T) {
 }
 
 func TestRunShouldSucceedWithValidConfigAndNoopListen(t *testing.T) {
+	setValidGitHubToken(t)
 	path := writeConfig(t, "port: 9400\n")
 	err := run(path, prometheus.NewRegistry(), noopListen)
 	if err != nil {
@@ -105,6 +154,7 @@ func TestRunShouldSucceedWithValidConfigAndNoopListen(t *testing.T) {
 }
 
 func TestRunShouldNotReturnErrorOnSuccess(t *testing.T) {
+	setValidGitHubToken(t)
 	path := writeConfig(t, "port: 9400\n")
 	err := run(path, prometheus.NewRegistry(), noopListen)
 	if err != nil {
@@ -113,6 +163,7 @@ func TestRunShouldNotReturnErrorOnSuccess(t *testing.T) {
 }
 
 func TestRunShouldCallListenOnConfiguredPort(t *testing.T) {
+	setValidGitHubToken(t)
 	var capturedAddr string
 	stub := func(addr string, _ http.Handler) error {
 		capturedAddr = addr
@@ -130,6 +181,7 @@ func TestRunShouldCallListenOnConfiguredPort(t *testing.T) {
 }
 
 func TestRunShouldNotListenOnWrongPort(t *testing.T) {
+	setValidGitHubToken(t)
 	var capturedAddr string
 	stub := func(addr string, _ http.Handler) error {
 		capturedAddr = addr
@@ -147,6 +199,7 @@ func TestRunShouldNotListenOnWrongPort(t *testing.T) {
 }
 
 func TestRunShouldPropagateListenError(t *testing.T) {
+	setValidGitHubToken(t)
 	sentinel := errors.New("listen failed")
 	stub := func(_ string, _ http.Handler) error {
 		return sentinel
@@ -160,6 +213,7 @@ func TestRunShouldPropagateListenError(t *testing.T) {
 }
 
 func TestRunShouldNotSwallowListenError(t *testing.T) {
+	setValidGitHubToken(t)
 	stub := func(_ string, _ http.Handler) error {
 		return fmt.Errorf("listen failed")
 	}

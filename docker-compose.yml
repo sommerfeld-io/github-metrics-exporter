@@ -79,6 +79,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    environment:
+      GITHUB_TOKEN: ${GITHUB_METRICS_EXPORTER_TOKEN}
     ports:
       - 9400:9400
     volumes:

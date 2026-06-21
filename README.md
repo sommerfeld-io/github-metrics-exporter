@@ -23,12 +23,14 @@ Learn about our tagging policy and the difference between rolling tags and immut
 
 ## Usage
 
-Run the exporter with Docker Compose. Create a `ghme-config.yml` configuration file (see `src/ghme-config.yml` on GitHub for a documented reference) and mount it into the container:
+Run the exporter with Docker Compose. Create a `ghme-config.yml` configuration file (see `src/ghme-config.yml` on GitHub for a documented reference), mount it into the container, and pass the token from your host environment:
 
 ```yaml
 services:
   github-metrics-exporter:
     image: sommerfeldio/github-metrics-exporter:latest
+    environment:
+      GITHUB_TOKEN: ${GITHUB_METRICS_EXPORTER_TOKEN}
     ports:
       - 9400:9400
     volumes:
@@ -42,6 +44,24 @@ The exporter exposes three endpoints once running:
 | `/`         | HTML landing page with build info  |
 | `/metrics`  | Prometheus metrics                 |
 | `/healthz`  | Plain-text health check            |
+
+### GitHub Token
+
+The exporter requires a GitHub personal access token (PAT) to query the GitHub API. Set the `GITHUB_TOKEN` environment variable before starting the exporter. If the variable is absent or empty, the exporter exits immediately with a non-zero code and a clear error message - no silent failures at scrape time.
+
+**Required permissions (fine-grained PAT):**
+
+| Permission | Access     |
+|------------|------------|
+| Actions    | Read-only  |
+
+**Security:** Never hardcode the token in `docker-compose.yml` or any version-controlled file. Store it as an environment variable on the host and reference it with `${VARIABLE_NAME}` substitution.
+
+On your machine, export the token under a specific name to avoid collisions with other tools:
+
+```bash
+export GITHUB_METRICS_EXPORTER_TOKEN=github_pat_...
+```
 
 ## Architecture Decisions
 

@@ -9,7 +9,7 @@ package acceptance_test
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http/httptest"
 	"os"
 	"testing"
@@ -29,10 +29,12 @@ var (
 func writeTempConfig(port int) string {
 	f, err := os.CreateTemp("", "ghme-acceptance-config-*.yml")
 	if err != nil {
-		log.Fatalf("setup: create temp config: %v", err)
+		slog.Error("setup: create temp config", "error", err)
+		os.Exit(1)
 	}
 	if _, err := fmt.Fprintf(f, "port: %d\n", port); err != nil {
-		log.Fatalf("setup: write temp config: %v", err)
+		slog.Error("setup: write temp config", "error", err)
+		os.Exit(1)
 	}
 	f.Close()
 	return f.Name()
@@ -42,7 +44,8 @@ func writeTempConfig(port int) string {
 // Go's coverage instrumentation is flushed before os.Exit is called, then tears down the server.
 func TestMain(m *testing.M) {
 	if err := metrics.Register(prometheus.DefaultRegisterer); err != nil {
-		log.Fatalf("failed to register metrics: %v", err)
+		slog.Error("failed to register metrics", "error", err)
+		os.Exit(1)
 	}
 
 	cfgPath := writeTempConfig(9400)
@@ -50,7 +53,8 @@ func TestMain(m *testing.M) {
 
 	cfg, err := config.Load(cfgPath)
 	if err != nil {
-		log.Fatalf("failed to load config: %v", err)
+		slog.Error("failed to load config", "error", err)
+		os.Exit(1)
 	}
 
 	testSrv = httptest.NewServer(server.New(cfg.Port))
@@ -75,6 +79,7 @@ func TestAcceptanceSuite(t *testing.T) {
 		ScenarioInitializer: func(ctx *godog.ScenarioContext) {
 			InitializeScenario(ctx)
 			InitializeConfigScenario(ctx)
+			InitializeTokenScenario(ctx)
 		},
 		Options: &opts,
 	}
