@@ -19,6 +19,26 @@ jobs:
     permissions:
       contents: write
 
+  upload-sbom:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Login to Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.DOCKERHUB_USER }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Generate SPDX SBOM from Docker image
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USER }}/${{ env.image-name }}:${{ env.IMAGE_TAG_LATEST }}
+          format: spdx-json
+          output-file: sbom.spdx.json
+          upload-release-assets: true
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
   publish-release:
     runs-on: ubuntu-latest
     permissions:

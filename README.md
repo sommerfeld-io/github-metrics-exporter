@@ -51,6 +51,14 @@ All issues labeled as `ADR` [are tracked as GitHub issue](https://github.com/som
 
 All issues labeled as `risk` (= some sort of risk or a technical debt) or `security` (= disclosed security issues - e.g. CVEs) [are tracked as GitHub issue](https://github.com/sommerfeld-io/github-metrics-exporter/issues?q=is%3Aissue+label%3Asecurity%2Crisk+is%3Aopen) and carry the respective label.
 
+## Security Artifacts
+
+Every [Release](https://github.com/sommerfeld-io/github-metrics-exporter/releases) includes a Software Bill of Materials (SBOM) in [SPDX JSON](https://spdx.dev) format, attached as a release asset named `sbom.spdx.json`.
+
+The SBOM provides a full inventory of all software components bundled in the container image - including Alpine OS packages and Go module dependencies - with their associated license identifiers(e.g., `MIT`, `Apache-2.0`). It is generated automatically during the release pipeline.
+
+To download the SBOM for a specific release, navigate to the [Releases page](https://github.com/sommerfeld-io/github-metrics-exporter/releases), open the target release, and download `sbom.spdx.json` from the **Assets** section.
+
 ## Contact
 
 Feel free to contact me via <sebastian@sommerfeld.io>.

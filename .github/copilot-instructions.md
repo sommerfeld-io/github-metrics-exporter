@@ -31,8 +31,8 @@ Certain files in this repository define the build, test, and release infrastruct
 
 **AI agents MUST NOT modify the following files or directories under any circumstances, unless the user has explicitly and unambiguously asked for a change to these specific files:**
 
-- `Dockerfile` — container image definition
-- `.github/workflows/**` — all GitHub Actions workflow files
+- `Dockerfile` - container image definition
+- `.github/workflows/**` - all GitHub Actions workflow files
 
 This restriction applies even when a change to one of these files would make the current task easier or would cause a lint check or test to pass. The build and test infrastructure exists to verify changes, not to be adjusted in response to them.
 
