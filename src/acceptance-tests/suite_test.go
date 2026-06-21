@@ -18,13 +18,23 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sommerfeld-io/github-metrics-exporter/internal/config"
 	"github.com/sommerfeld-io/github-metrics-exporter/internal/metrics"
+	"github.com/sommerfeld-io/github-metrics-exporter/internal/metrics/repository"
 	"github.com/sommerfeld-io/github-metrics-exporter/internal/server"
 )
 
 var (
-	testSrv *httptest.Server
-	baseURL string
+	testSrv      *httptest.Server
+	noTargetsSrv *httptest.Server
+	baseURL      string
+	noTargetsURL string
 )
+
+// testRepos is the fixed set of repositories used in the acceptance test server.
+// It includes one accessible and one inaccessible entry so that both states can be tested.
+var testRepos = []server.Repository{
+	{Owner: "test-org", Name: "repo-accessible", Accessible: true},
+	{Owner: "test-org", Name: "repo-locked", Accessible: false},
+}
 
 func writeTempConfig(port int) string {
 	f, err := os.CreateTemp("", "ghme-acceptance-config-*.yml")
@@ -40,12 +50,21 @@ func writeTempConfig(port int) string {
 	return f.Name()
 }
 
-// TestMain registers metrics, starts a real HTTP test server, delegates to m.Run so that
-// Go's coverage instrumentation is flushed before os.Exit is called, then tears down the server.
+// TestMain registers metrics, seeds pre-configured test repositories, starts two real HTTP
+// test servers (one with repos, one without), delegates to m.Run so that Go's coverage
+// instrumentation is flushed before os.Exit is called, then tears down both servers.
 func TestMain(m *testing.M) {
 	if err := metrics.Register(prometheus.DefaultRegisterer); err != nil {
 		slog.Error("failed to register metrics", "error", err)
 		os.Exit(1)
+	}
+
+	// Seed the repository accessibility metrics so they appear on /metrics.
+	for _, r := range testRepos {
+		if err := repository.Set(r.Owner, r.Name, r.Accessible); err != nil {
+			slog.Error("setup: seed repository metric", "error", err)
+			os.Exit(1)
+		}
 	}
 
 	cfgPath := writeTempConfig(9400)
@@ -57,12 +76,16 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	testSrv = httptest.NewServer(server.New(cfg.Port))
+	testSrv = httptest.NewServer(server.New(cfg.Port, testRepos))
 	baseURL = testSrv.URL
+
+	noTargetsSrv = httptest.NewServer(server.New(cfg.Port, nil))
+	noTargetsURL = noTargetsSrv.URL
 
 	exitCode := m.Run()
 
 	testSrv.Close()
+	noTargetsSrv.Close()
 	os.Exit(exitCode)
 }
 
@@ -80,6 +103,7 @@ func TestAcceptanceSuite(t *testing.T) {
 			InitializeScenario(ctx)
 			InitializeConfigScenario(ctx)
 			InitializeTokenScenario(ctx)
+			InitializeRepositoryScenario(ctx)
 		},
 		Options: &opts,
 	}

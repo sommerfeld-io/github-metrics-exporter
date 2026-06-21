@@ -3,3 +3,13 @@
 ## must be a valid integer (e.g., 1024-65535). Non-integer values (strings, floats, booleans) will
 ## cause startup failure. The configured port will also be displayed on the web UI.
 port: 9400
+
+## GitHub targets for repository discovery.
+## At least one organization or user must be configured for repository metrics to be collected.
+## If both lists are empty, the exporter starts but the repository list will be empty and a
+## warning will be displayed on the web interface.
+github:
+  organizations:
+    - sommerfeld-io
+  users:
+    - sebastian-sommerfeld-io

@@ -9,9 +9,28 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// GitHubTargets holds the GitHub organizations and users to discover repositories for.
+type GitHubTargets struct {
+	Organizations []string
+	Users         []string
+}
+
 // Config holds the validated application configuration.
 type Config struct {
-	Port int
+	Port   int
+	GitHub GitHubTargets
+}
+
+// rawConfig is the intermediate struct used for YAML unmarshaling.
+// Port is kept as interface{} so the existing type-checked parsePort logic is preserved.
+type rawConfig struct {
+	Port   interface{}   `yaml:"port"`
+	GitHub githubSection `yaml:"github"`
+}
+
+type githubSection struct {
+	Organizations []string `yaml:"organizations"`
+	Users         []string `yaml:"users"`
 }
 
 // Load reads the YAML file at path, validates all required fields and their
@@ -22,21 +41,27 @@ func Load(path string) (*Config, error) {
 		return nil, fmt.Errorf("config: cannot read %q: %w", path, err)
 	}
 
-	var raw map[string]interface{}
+	var raw rawConfig
 	if err := yaml.Unmarshal(data, &raw); err != nil {
 		return nil, fmt.Errorf("config: invalid YAML: %w", err)
 	}
 
-	portRaw, exists := raw["port"]
-	if !exists {
+	if raw.Port == nil {
 		return nil, errors.New(`config: required field "port" is missing`)
 	}
 
-	port, err := parsePort(portRaw)
+	port, err := parsePort(raw.Port)
 	if err != nil {
 		return nil, err
 	}
-	return &Config{Port: port}, nil
+
+	return &Config{
+		Port: port,
+		GitHub: GitHubTargets{
+			Organizations: raw.GitHub.Organizations,
+			Users:         raw.GitHub.Users,
+		},
+	}, nil
 }
 
 // parsePort converts the raw YAML value for the port field into an int.

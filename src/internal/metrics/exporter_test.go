@@ -6,6 +6,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sommerfeld-io/github-metrics-exporter/internal/metrics"
+	"github.com/sommerfeld-io/github-metrics-exporter/internal/metrics/repository"
 )
 
 // TestRegisterShouldSucceedWithValidRegistry verifies that Register returns nil
@@ -101,6 +102,51 @@ func TestRegisterShouldReturnErrorWhenPrefixIsEmpty(t *testing.T) {
 	err := metrics.Register(prometheus.NewRegistry())
 	if err == nil {
 		t.Error("Register must return an error when MetricPrefix is empty")
+	}
+}
+
+// TestRegisterShouldExposeRepositoryAccessibleMetric verifies that after Register
+// the ghme_repository_accessible metric family is gatherable from the registry.
+func TestRegisterShouldExposeRepositoryAccessibleMetric(t *testing.T) {
+	reg := prometheus.NewRegistry()
+	if err := metrics.Register(reg); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// A GaugeVec only appears in Gather output once it has at least one time series.
+	if err := repository.Set("test-owner", "test-repo", true); err != nil {
+		t.Fatalf("Set failed: %v", err)
+	}
+	mfs, err := reg.Gather()
+	if err != nil {
+		t.Fatalf("failed to gather metrics: %v", err)
+	}
+	found := false
+	for _, mf := range mfs {
+		if strings.Contains(mf.GetName(), "repository_accessible") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected ghme_repository_accessible metric family to be registered")
+	}
+}
+
+// TestRegisterShouldNotExposeRepositoryMetricOnOtherRegistry verifies that a registry
+// that was not passed to Register does not contain the repository metric.
+func TestRegisterShouldNotExposeRepositoryMetricOnOtherRegistry(t *testing.T) {
+	if err := metrics.Register(prometheus.NewRegistry()); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	other := prometheus.NewRegistry()
+	mfs, err := other.Gather()
+	if err != nil {
+		t.Fatalf("failed to gather from other registry: %v", err)
+	}
+	for _, mf := range mfs {
+		if strings.Contains(mf.GetName(), "repository_accessible") {
+			t.Error("repository_accessible metric must not appear on a registry that was not passed to Register")
+		}
 	}
 }
 

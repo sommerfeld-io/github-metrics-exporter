@@ -16,6 +16,73 @@ func writeConfig(t *testing.T, content string) string {
 	return path
 }
 
+func TestLoadShouldSucceedWithGitHubOrganizations(t *testing.T) {
+	path := writeConfig(t, "port: 9400\ngithub:\n  organizations:\n    - org1\n    - org2\n")
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(cfg.GitHub.Organizations) != 2 {
+		t.Errorf("expected 2 organizations, got %d", len(cfg.GitHub.Organizations))
+	}
+	if cfg.GitHub.Organizations[0] != "org1" || cfg.GitHub.Organizations[1] != "org2" {
+		t.Errorf("unexpected organizations: %v", cfg.GitHub.Organizations)
+	}
+}
+
+func TestLoadShouldNotReturnNilOrganizationsWhenPresent(t *testing.T) {
+	path := writeConfig(t, "port: 9400\ngithub:\n  organizations:\n    - org1\n")
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if cfg.GitHub.Organizations == nil {
+		t.Error("organizations must not be nil when key is present in config")
+	}
+}
+
+func TestLoadShouldSucceedWithGitHubUsers(t *testing.T) {
+	path := writeConfig(t, "port: 9400\ngithub:\n  users:\n    - user1\n    - user2\n")
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(cfg.GitHub.Users) != 2 {
+		t.Errorf("expected 2 users, got %d", len(cfg.GitHub.Users))
+	}
+	if cfg.GitHub.Users[0] != "user1" || cfg.GitHub.Users[1] != "user2" {
+		t.Errorf("unexpected users: %v", cfg.GitHub.Users)
+	}
+}
+
+func TestLoadShouldSucceedWithEmptyGitHubSection(t *testing.T) {
+	path := writeConfig(t, "port: 9400\n")
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("expected no error for config without github section, got %v", err)
+	}
+	if len(cfg.GitHub.Organizations) != 0 {
+		t.Errorf("expected empty organizations, got %v", cfg.GitHub.Organizations)
+	}
+	if len(cfg.GitHub.Users) != 0 {
+		t.Errorf("expected empty users, got %v", cfg.GitHub.Users)
+	}
+}
+
+func TestLoadShouldSucceedWithBothOrgsAndUsers(t *testing.T) {
+	path := writeConfig(t, "port: 9400\ngithub:\n  organizations:\n    - org1\n  users:\n    - user1\n")
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(cfg.GitHub.Organizations) != 1 || cfg.GitHub.Organizations[0] != "org1" {
+		t.Errorf("unexpected organizations: %v", cfg.GitHub.Organizations)
+	}
+	if len(cfg.GitHub.Users) != 1 || cfg.GitHub.Users[0] != "user1" {
+		t.Errorf("unexpected users: %v", cfg.GitHub.Users)
+	}
+}
+
 func TestLoadShouldSucceedWithValidConfig(t *testing.T) {
 	path := writeConfig(t, "port: 9400\n")
 	cfg, err := Load(path)

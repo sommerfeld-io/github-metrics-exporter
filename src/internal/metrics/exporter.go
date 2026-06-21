@@ -5,9 +5,10 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sommerfeld-io/github-metrics-exporter/internal/metrics/meta"
+	"github.com/sommerfeld-io/github-metrics-exporter/internal/metrics/repository"
 )
 
-// Register registers all core exporter meta-metrics with the given registry and
+// Register registers all core exporter metrics with the given registry and
 // sets their initial values so that they are present on the /metrics endpoint
 // immediately upon startup.
 func Register(reg prometheus.Registerer) error {
@@ -15,5 +16,10 @@ func Register(reg prometheus.Registerer) error {
 		return fmt.Errorf("metrics.Register: %w", err)
 	}
 	reg.MustRegister(meta.ExporterInfo)
+
+	if err := repository.Init(MetricPrefix); err != nil {
+		return fmt.Errorf("metrics.Register: %w", err)
+	}
+	reg.MustRegister(repository.Accessible)
 	return nil
 }

@@ -17,7 +17,7 @@ func setup(t *testing.T) *http.ServeMux {
 	if err := metrics.Register(reg); err != nil {
 		t.Fatalf("failed to register metrics: %v", err)
 	}
-	return server.New(9400)
+	return server.New(9400, nil)
 }
 
 func TestRootEndpointShouldReturnHTML(t *testing.T) {
@@ -122,7 +122,7 @@ func TestRootEndpointShouldDisplayConfiguredPort(t *testing.T) {
 	if err := metrics.Register(reg); err != nil {
 		t.Fatalf("failed to register metrics: %v", err)
 	}
-	mux := server.New(8080)
+	mux := server.New(8080, nil)
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	mux.ServeHTTP(rec, req)
@@ -137,7 +137,7 @@ func TestRootEndpointShouldNotDisplayUnconfiguredPort(t *testing.T) {
 	if err := metrics.Register(reg); err != nil {
 		t.Fatalf("failed to register metrics: %v", err)
 	}
-	mux := server.New(8080)
+	mux := server.New(8080, nil)
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	mux.ServeHTTP(rec, req)
@@ -189,5 +189,106 @@ func TestMetricsEndpointShouldReturnPlainText(t *testing.T) {
 	ct := rec.Header().Get("Content-Type")
 	if !strings.Contains(ct, "text/plain") {
 		t.Errorf("expected Content-Type to contain text/plain, got %q", ct)
+	}
+}
+
+func TestRootEndpointShouldDisplayWarningWhenNoReposConfigured(t *testing.T) {
+	mux := setup(t)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	mux.ServeHTTP(rec, req)
+
+	if !strings.Contains(rec.Body.String(), "No GitHub targets") {
+		t.Error("expected no-targets warning when repo list is empty")
+	}
+}
+
+func TestRootEndpointShouldNotDisplayRepoSectionWhenNoReposConfigured(t *testing.T) {
+	mux := setup(t)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	mux.ServeHTTP(rec, req)
+
+	if strings.Contains(rec.Body.String(), "<h2>") {
+		t.Error("owner heading must not appear when repo list is empty")
+	}
+}
+
+func TestRootEndpointShouldDisplayOwnerHeadingWhenReposPresent(t *testing.T) {
+	reg := prometheus.NewRegistry()
+	if err := metrics.Register(reg); err != nil {
+		t.Fatalf("failed to register metrics: %v", err)
+	}
+	repos := []server.Repository{
+		{Owner: "test-org", Name: "repo1", Accessible: true},
+	}
+	mux := server.New(9400, repos)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	mux.ServeHTTP(rec, req)
+
+	if !strings.Contains(rec.Body.String(), "test-org") {
+		t.Error("expected owner heading 'test-org' in response body")
+	}
+}
+
+func TestRootEndpointShouldDisplayRepoNameWhenPresent(t *testing.T) {
+	reg := prometheus.NewRegistry()
+	if err := metrics.Register(reg); err != nil {
+		t.Fatalf("failed to register metrics: %v", err)
+	}
+	repos := []server.Repository{
+		{Owner: "test-org", Name: "my-repo", Accessible: true},
+	}
+	mux := server.New(9400, repos)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	mux.ServeHTTP(rec, req)
+
+	if !strings.Contains(rec.Body.String(), "my-repo") {
+		t.Error("expected repository name 'my-repo' in response body")
+	}
+}
+
+func TestRootEndpointShouldDisplayCorrectBadgeForAccessibility(t *testing.T) {
+	tests := []struct {
+		name        string
+		accessible  bool
+		wantPresent string
+		wantAbsent  string
+	}{
+		{
+			name:        "accessible repo shows accessible badge",
+			accessible:  true,
+			wantPresent: `class="badge accessible"`,
+			wantAbsent:  `class="badge inaccessible"`,
+		},
+		{
+			name:        "inaccessible repo shows inaccessible badge",
+			accessible:  false,
+			wantPresent: `class="badge inaccessible"`,
+			wantAbsent:  `class="badge accessible"`,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			reg := prometheus.NewRegistry()
+			if err := metrics.Register(reg); err != nil {
+				t.Fatalf("failed to register metrics: %v", err)
+			}
+			mux := server.New(9400, []server.Repository{
+				{Owner: "test-org", Name: "repo", Accessible: tc.accessible},
+			})
+			rec := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodGet, "/", nil)
+			mux.ServeHTTP(rec, req)
+			body := rec.Body.String()
+			if !strings.Contains(body, tc.wantPresent) {
+				t.Errorf("expected %q in response body", tc.wantPresent)
+			}
+			if strings.Contains(body, tc.wantAbsent) {
+				t.Errorf("must not contain %q in response body", tc.wantAbsent)
+			}
+		})
 	}
 }
