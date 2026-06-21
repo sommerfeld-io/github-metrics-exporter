@@ -14,6 +14,11 @@ includes:
 
 tasks:
 
+  compose:pull:
+    desc: Pull all container images for linting and validation (exclude the app image)
+    cmds:
+      - docker compose pull $(docker compose config --services | grep -v '^github-metrics-exporter$')
+
   symlinks:
     desc: Create symlinks for shared files
     cmds:
@@ -35,14 +40,14 @@ tasks:
   # ===============================================================================================
 
   docker:build:
-    desc: Lint and build container COMPOSE_SERVICE
+    desc: Lint and build container {{ .COMPOSE_SERVICE }}
     cmds:
       - task: lint
       - docker compose up {{ .COMPOSE_SERVICE }}-lint-dockerfile --exit-code-from {{ .COMPOSE_SERVICE }}-lint-dockerfile
       - docker compose build {{ .COMPOSE_SERVICE }}
 
   docker:run:
-    desc: Run container COMPOSE_SERVICE
+    desc: Run container {{ .COMPOSE_SERVICE }}
     cmds:
       - task: docker:build
       - docker compose up {{ .COMPOSE_SERVICE }}
