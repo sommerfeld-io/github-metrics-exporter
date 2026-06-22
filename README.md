@@ -23,6 +23,9 @@ Learn about our tagging policy and the difference between rolling tags and immut
 
 ## Usage
 
+> [!NOTE]
+> This usage guide targets the `:latest` container image and the corresponding most recent released version. Usage, configuration options, and features may differ in older releases or `:edge` release candidates. For documentation of a specific version, refer to the corresponding branch or tag in the [GitHub repository](https://github.com/sommerfeld-io/github-metrics-exporter).
+
 Run the exporter with Docker Compose. Create a `ghme-config.yml` configuration file (see `src/ghme-config.yml` on GitHub for a documented reference), mount it into the container, and pass the token from your host environment:
 
 ```yaml
