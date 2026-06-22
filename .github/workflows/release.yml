@@ -21,6 +21,7 @@ jobs:
 
   upload-sbom:
     runs-on: ubuntu-latest
+    needs: publish-release
     permissions:
       contents: write
     steps:
@@ -30,12 +31,18 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ secrets.DOCKERHUB_USER }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Extract version from release tag
+        id: release
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+        shell: bash
       - name: Generate SPDX SBOM from Docker image
         uses: anchore/sbom-action@v0
         with:
-          image: ${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USER }}/${{ env.image-name }}:${{ env.IMAGE_TAG_LATEST }}
+          image: ${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USER }}/${{ env.image-name }}:${{ steps.release.outputs.version }}
           format: spdx-json
-          output-file: sbom.spdx.json
+          output-file: ${{ secrets.DOCKERHUB_USER }}-${{ env.image-name }}_${{ steps.release.outputs.version }}.spdx.json
           upload-release-assets: true
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
