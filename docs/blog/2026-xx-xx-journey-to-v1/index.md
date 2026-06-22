@@ -43,7 +43,7 @@ Implemented things very quickly with AI. The GitHub issues already existed in th
 
 But you have to be careful how you use it. I quickly went off on unnecessary tangents and started optimizing logging and refactoring before I even had the first feature running. The config file was another example. Probably more useful than logging optimization, but since the tool was initially just for myself, hardcoded configuration would have been good enough at first.
 
-So it is very easy to get sidetracked and loose sight of the actual goals becase "just impementing this little fix/refactoring" is so easy and fast. 
+So it is very easy to get sidetracked and loose sight of the actual goals becase "just impementing this little fix/refactoring" is so easy and fast.
 
 That raises the question of how much of a prototype you want versus whether you're already trying to build something more serious. From that perspective, the config file was probably a sensible decision after all and getting sidetracked to the config file was a good thing.
 
@@ -52,3 +52,5 @@ That raises the question of how much of a prototype you want versus whether you'
 I get the feeling that i prefer claude code locally over github copilot agent on github.com because i still like running linters and tests manually after an ai implementation. this might be my perseonal issue of "letting go" because the AI runs tests and linters too. and the pipeline does too. so the safety-nets are in place. and on the PR i could see, if the ai made changes i don't like. still i feel more "in control" locally. this might change over time and maybe i have to force myself to use the copilot agent in github.com more to facilitate this "change over time".
 
 also i feel that i have to keep a more diciplined eye on the changes made by the AI so i still align with DRY principle. as long as i do not introduce coupling with DRY, this is an important principle. but since the AI does the change anyway, it is easier to let it slip because the AI is the one who has to deal with this in the future. this however could very well turn out to be a very wrong assumption because if my app does not build someday in the future, this might be a very big mess I have to clean uo (or at least steer the AI into cleaning up). so better to avoid this mess to begin with and keep the AI on a tight leash. the ai should not be allowed to introduce technical debt just as human developers should not be allowed. Or rather not be allowed ti introduce and not clean up in the future because technical debt is a topic in itelf. but with the speed of AI, i can have the AI clean this up right away. so i (hopefully) do not have as big a "need" to pile on technical debt.
+
+also i practice inspecting tests, new tests and changes to tests which makes me feel more in control over the changeset. especially on the the acceptance tests keep a close eye.
