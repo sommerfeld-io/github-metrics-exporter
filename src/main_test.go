@@ -235,33 +235,6 @@ func TestRunShouldNotSwallowListenError(t *testing.T) {
 	}
 }
 
-func TestRunShouldReturnErrorWhenDiscoverFails(t *testing.T) {
-	setValidGitHubToken(t)
-	failDiscover := func(_ context.Context, _, _ []string) ([]github.Repository, error) {
-		return nil, fmt.Errorf("discovery failed")
-	}
-	path := writeConfig(t, "port: 9400\n")
-	err := run(path, prometheus.NewRegistry(), failDiscover, noopFetchWorkflows, noopListen)
-	if err == nil {
-		t.Error("expected error when discover fails, got nil")
-	}
-}
-
-func TestRunShouldWrapDiscoverError(t *testing.T) {
-	setValidGitHubToken(t)
-	failDiscover := func(_ context.Context, _, _ []string) ([]github.Repository, error) {
-		return nil, fmt.Errorf("discovery failed")
-	}
-	path := writeConfig(t, "port: 9400\n")
-	err := run(path, prometheus.NewRegistry(), failDiscover, noopFetchWorkflows, noopListen)
-	if err == nil {
-		t.Fatal("expected error, got nil")
-	}
-	if !strings.Contains(err.Error(), "failed to discover repositories") {
-		t.Errorf("expected error to contain 'failed to discover repositories', got %q", err.Error())
-	}
-}
-
 func TestRunShouldNotReturnErrorWhenDiscoverReturnsEmptyList(t *testing.T) {
 	setValidGitHubToken(t)
 	emptyDiscover := func(_ context.Context, _, _ []string) ([]github.Repository, error) {
@@ -274,31 +247,66 @@ func TestRunShouldNotReturnErrorWhenDiscoverReturnsEmptyList(t *testing.T) {
 	}
 }
 
-func TestRunShouldSucceedWhenWorkflowFetchFails(t *testing.T) {
-	setValidGitHubToken(t)
+func TestDoCollectShouldReturnErrorWhenDiscoverFails(t *testing.T) {
+	reg := prometheus.NewRegistry()
+	if err := metrics.Register(reg); err != nil {
+		t.Fatalf("failed to register metrics: %v", err)
+	}
+	failDiscover := func(_ context.Context, _, _ []string) ([]github.Repository, error) {
+		return nil, fmt.Errorf("discovery failed")
+	}
+	_, err := doCollect(context.Background(), nil, nil, failDiscover, noopFetchWorkflows)
+	if err == nil {
+		t.Error("expected error when discover fails, got nil")
+	}
+}
+
+func TestDoCollectShouldNotReturnErrorForEmptyDiscovery(t *testing.T) {
+	reg := prometheus.NewRegistry()
+	if err := metrics.Register(reg); err != nil {
+		t.Fatalf("failed to register metrics: %v", err)
+	}
+	repos, err := doCollect(context.Background(), nil, nil, noopDiscover, noopFetchWorkflows)
+	if err != nil {
+		t.Errorf("expected no error for empty discovery, got %v", err)
+	}
+	if repos == nil {
+		t.Error("expected non-nil repo slice for empty discovery")
+	}
+}
+
+func TestDoCollectShouldSucceedWhenWorkflowFetchFails(t *testing.T) {
+	reg := prometheus.NewRegistry()
+	if err := metrics.Register(reg); err != nil {
+		t.Fatalf("failed to register metrics: %v", err)
+	}
 	accessibleDiscover := func(_ context.Context, _, _ []string) ([]github.Repository, error) {
 		return []github.Repository{{Owner: "org", Name: "repo", Accessible: true}}, nil
 	}
 	failFetch := func(_ context.Context, _, _ string) ([]github.RunWithJobs, error) {
 		return nil, fmt.Errorf("github API error")
 	}
-	path := writeConfig(t, "port: 9400\n")
-	err := run(path, prometheus.NewRegistry(), accessibleDiscover, failFetch, noopListen)
+	repos, err := doCollect(context.Background(), nil, nil, accessibleDiscover, failFetch)
 	if err != nil {
 		t.Errorf("expected no error when workflow fetch fails (warn-and-continue), got %v", err)
 	}
+	if len(repos) == 0 {
+		t.Error("expected repos to be returned even when workflow fetch fails")
+	}
 }
 
-func TestRunShouldNotReturnErrorWhenWorkflowFetchReturnsEmpty(t *testing.T) {
-	setValidGitHubToken(t)
+func TestDoCollectShouldNotReturnErrorWhenWorkflowFetchReturnsEmpty(t *testing.T) {
+	reg := prometheus.NewRegistry()
+	if err := metrics.Register(reg); err != nil {
+		t.Fatalf("failed to register metrics: %v", err)
+	}
 	accessibleDiscover := func(_ context.Context, _, _ []string) ([]github.Repository, error) {
 		return []github.Repository{{Owner: "org", Name: "repo", Accessible: true}}, nil
 	}
 	emptyFetch := func(_ context.Context, _, _ string) ([]github.RunWithJobs, error) {
 		return []github.RunWithJobs{}, nil
 	}
-	path := writeConfig(t, "port: 9400\n")
-	err := run(path, prometheus.NewRegistry(), accessibleDiscover, emptyFetch, noopListen)
+	_, err := doCollect(context.Background(), nil, nil, accessibleDiscover, emptyFetch)
 	if err != nil {
 		t.Errorf("expected no error when workflow fetch returns empty list, got %v", err)
 	}

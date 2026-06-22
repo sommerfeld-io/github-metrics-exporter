@@ -102,6 +102,7 @@ func (c *Client) Discover(ctx context.Context, orgs, users []string) ([]Reposito
 // listOrgRepos returns all repositories for a single organization, handling pagination.
 // 403/404 responses are logged and result in an empty list for that org; other errors are returned.
 func (c *Client) listOrgRepos(ctx context.Context, org string) ([]Repository, error) {
+	slog.Info("github: listing repositories", "org", org)
 	opts := &gogithub.RepositoryListByOrgOptions{
 		ListOptions: gogithub.ListOptions{PerPage: 100},
 	}
@@ -133,6 +134,7 @@ func (c *Client) listOrgRepos(ctx context.Context, org string) ([]Repository, er
 // listUserRepos returns all repositories for a single user, handling pagination.
 // 403/404 responses are logged and result in an empty list for that user; other errors are returned.
 func (c *Client) listUserRepos(ctx context.Context, user string) ([]Repository, error) {
+	slog.Info("github: listing repositories", "user", user)
 	opts := &gogithub.RepositoryListByUserOptions{
 		ListOptions: gogithub.ListOptions{PerPage: 100},
 	}
@@ -165,6 +167,7 @@ func (c *Client) listUserRepos(ctx context.Context, user string) ([]Repository, 
 // It fetches a single page of results with no date filter, exposing current state
 // as required by the Prometheus exporter model. Prometheus manages the time series.
 func (c *Client) WorkflowRuns(ctx context.Context, owner, repo string) ([]WorkflowRun, error) {
+	slog.Info("github: fetching workflow runs", "owner", owner, "repo", repo)
 	opts := &gogithub.ListWorkflowRunsOptions{
 		ListOptions: gogithub.ListOptions{PerPage: 100},
 	}
@@ -191,6 +194,7 @@ func (c *Client) WorkflowRuns(ctx context.Context, owner, repo string) ([]Workfl
 // JobsForRun fetches all jobs for a single workflow run.
 // Pagination is handled automatically.
 func (c *Client) JobsForRun(ctx context.Context, owner, repo string, runID int64) ([]Job, error) {
+	slog.Info("github: fetching jobs for run", "owner", owner, "repo", repo, "run_id", runID)
 	opts := &gogithub.ListWorkflowJobsOptions{
 		ListOptions: gogithub.ListOptions{PerPage: 100},
 	}

@@ -1,8 +1,11 @@
 package server
 
 import (
+	"context"
 	"html/template"
+	"log/slog"
 	"net/http"
+	"sync"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sommerfeld-io/github-metrics-exporter/internal/metrics"
@@ -13,6 +16,18 @@ type Repository struct {
 	Owner      string
 	Name       string
 	Accessible bool
+}
+
+// CollectFunc is called on each /metrics scrape to gather fresh data from GitHub.
+// It resets and repopulates all Prometheus gauges and returns the current repository list.
+type CollectFunc func(ctx context.Context) ([]Repository, error)
+
+// srv holds per-server state shared between the metrics and index handlers.
+type srv struct {
+	port      int
+	collect   CollectFunc
+	mu        sync.RWMutex
+	lastRepos []Repository
 }
 
 // repoGroup groups repositories under a common owner name for template rendering.
@@ -101,8 +116,32 @@ var indexTmpl = template.Must(template.New("index").Funcs(template.FuncMap{
 	"not": func(b bool) bool { return !b },
 }).Parse(indexHTML))
 
-func indexHandler(port int, repos []Repository) http.HandlerFunc {
-	groups := groupRepos(repos)
+// metricsHandler calls the collect function to gather fresh data, updates the
+// cached repo list for the index page, then serves the Prometheus metrics.
+func (s *srv) metricsHandler(w http.ResponseWriter, r *http.Request) {
+	repos, err := s.collect(r.Context())
+	if err != nil {
+		slog.Error("metrics: data collection failed", "error", err)
+		http.Error(w, "data collection failed", http.StatusInternalServerError)
+		return
+	}
+	s.mu.Lock()
+	s.lastRepos = repos
+	s.mu.Unlock()
+	promhttp.Handler().ServeHTTP(w, r)
+}
+
+// indexHandler renders the landing page using the repo list from the most recent
+// metrics scrape. Before the first scrape, the page shows the no-targets warning.
+func (s *srv) indexHandler(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/" {
+		http.Error(w, "404 page not found", http.StatusNotFound)
+		return
+	}
+	s.mu.RLock()
+	repos := s.lastRepos
+	s.mu.RUnlock()
+
 	data := struct {
 		CommitSHA  string
 		Port       int
@@ -110,18 +149,12 @@ func indexHandler(port int, repos []Repository) http.HandlerFunc {
 		RepoGroups []repoGroup
 	}{
 		CommitSHA:  metrics.CommitSHA,
-		Port:       port,
+		Port:       s.port,
 		HasRepos:   len(repos) > 0,
-		RepoGroups: groups,
+		RepoGroups: groupRepos(repos),
 	}
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/" {
-			http.Error(w, "404 page not found", http.StatusNotFound)
-			return
-		}
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_ = indexTmpl.Execute(w, data)
-	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_ = indexTmpl.Execute(w, data)
 }
 
 func healthzEndpointHandler(w http.ResponseWriter, r *http.Request) {
@@ -129,14 +162,14 @@ func healthzEndpointHandler(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte("ok"))
 }
 
-// New sets up the HTTP server with all application routes: the index page,
-// the Prometheus metrics endpoint, and the health check endpoint.
-// repos is the list of discovered repositories to display on the index page.
+// New sets up the HTTP server with all application routes.
+// collect is called on every /metrics scrape to fetch fresh data from GitHub.
 // The port is rendered on the root page so operators can confirm the active configuration.
-func New(port int, repos []Repository) *http.ServeMux {
+func New(port int, collect CollectFunc) *http.ServeMux {
+	s := &srv{port: port, collect: collect}
 	mux := http.NewServeMux()
-	mux.HandleFunc("/", indexHandler(port, repos))
-	mux.Handle("/metrics", promhttp.Handler())
+	mux.HandleFunc("/", s.indexHandler)
+	mux.HandleFunc("/metrics", s.metricsHandler)
 	mux.HandleFunc("/healthz", healthzEndpointHandler)
 	return mux
 }

@@ -48,55 +48,50 @@ func run(configPath string, reg prometheus.Registerer, discover discoverFunc, fe
 		slog.Warn("no GitHub targets configured; repository list will be empty")
 	}
 
-	ghRepos, err := discover(context.Background(), cfg.GitHub.Organizations, cfg.GitHub.Users)
-	if err != nil {
-		return fmt.Errorf("failed to discover repositories: %w", err)
+	collect := func(ctx context.Context) ([]server.Repository, error) {
+		return doCollect(ctx, cfg.GitHub.Organizations, cfg.GitHub.Users, discover, fetchWorkflows)
 	}
 
-	srvRepos, err := applyRepos(ghRepos)
-	if err != nil {
-		return err
-	}
-
-	if err := applyWorkflows(context.Background(), srvRepos, fetchWorkflows); err != nil {
-		return err
-	}
-
-	srv := server.New(cfg.Port, srvRepos)
+	srv := server.New(cfg.Port, collect)
 	slog.Info("Starting github-metrics-exporter", "port", cfg.Port)
 	return listenAndServe(fmt.Sprintf(":%d", cfg.Port), srv)
 }
 
-// applyRepos records each repository's accessibility metric and returns
-// the equivalent slice of server.Repository for page rendering.
-func applyRepos(ghRepos []github.Repository) ([]server.Repository, error) {
-	srvRepos := make([]server.Repository, len(ghRepos))
-	for i, r := range ghRepos {
+// doCollect discovers repositories, resets and repopulates all Prometheus gauges,
+// and returns the current repository list. It is called on every /metrics scrape.
+// Per-repo workflow fetch failures are logged and skipped (warn-and-continue).
+func doCollect(ctx context.Context, orgs, users []string, discover discoverFunc, fetchWorkflows fetchWorkflowsFunc) ([]server.Repository, error) {
+	ghRepos, err := discover(ctx, orgs, users)
+	if err != nil {
+		return nil, fmt.Errorf("failed to discover repositories: %w", err)
+	}
+
+	repository.Accessible.Reset()
+	srvRepos := make([]server.Repository, 0, len(ghRepos))
+	for _, r := range ghRepos {
 		if err := repository.Set(r.Owner, r.Name, r.Accessible); err != nil {
 			return nil, fmt.Errorf("failed to set repository metric: %w", err)
 		}
-		srvRepos[i] = server.Repository{Owner: r.Owner, Name: r.Name, Accessible: r.Accessible}
+		srvRepos = append(srvRepos, server.Repository{Owner: r.Owner, Name: r.Name, Accessible: r.Accessible})
 	}
-	return srvRepos, nil
-}
 
-// applyWorkflows fetches workflow data for each accessible repository and records it as metrics.
-// Per-repo fetch failures are logged and skipped rather than aborting startup.
-func applyWorkflows(ctx context.Context, repos []server.Repository, fetch fetchWorkflowsFunc) error {
-	for _, r := range repos {
+	workflow.RunConclusion.Reset()
+	workflow.JobConclusion.Reset()
+	for _, r := range srvRepos {
 		if !r.Accessible {
 			continue
 		}
-		runsWithJobs, err := fetch(ctx, r.Owner, r.Name)
+		runsWithJobs, err := fetchWorkflows(ctx, r.Owner, r.Name)
 		if err != nil {
-			slog.Warn("failed to fetch workflow data; skipping repo", "owner", r.Owner, "repo", r.Name, "error", err)
+			slog.Warn("collect: failed to fetch workflow data; skipping repo", "owner", r.Owner, "repo", r.Name, "error", err)
 			continue
 		}
 		if err := workflow.Record(r.Owner, r.Name, runsWithJobs); err != nil {
-			return fmt.Errorf("failed to record workflow metrics for %s/%s: %w", r.Owner, r.Name, err)
+			return nil, fmt.Errorf("failed to record workflow metrics for %s/%s: %w", r.Owner, r.Name, err)
 		}
 	}
-	return nil
+
+	return srvRepos, nil
 }
 
 func main() {

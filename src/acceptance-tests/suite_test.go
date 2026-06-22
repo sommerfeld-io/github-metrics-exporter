@@ -8,19 +8,21 @@
 package acceptance_test
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
 
 	"github.com/cucumber/godog"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/sommerfeld-io/github-metrics-exporter/internal/config"
 	"github.com/sommerfeld-io/github-metrics-exporter/internal/github"
 	"github.com/sommerfeld-io/github-metrics-exporter/internal/metrics"
 	"github.com/sommerfeld-io/github-metrics-exporter/internal/metrics/repository"
 	"github.com/sommerfeld-io/github-metrics-exporter/internal/metrics/workflow"
+	"github.com/sommerfeld-io/github-metrics-exporter/internal/config"
 	"github.com/sommerfeld-io/github-metrics-exporter/internal/server"
 )
 
@@ -52,24 +54,18 @@ func writeTempConfig(port int) string {
 	return f.Name()
 }
 
-// TestMain registers metrics, seeds pre-configured test repositories, starts two real HTTP
-// test servers (one with repos, one without), delegates to m.Run so that Go's coverage
-// instrumentation is flushed before os.Exit is called, then tears down both servers.
-func TestMain(m *testing.M) {
-	if err := metrics.Register(prometheus.DefaultRegisterer); err != nil {
-		slog.Error("failed to register metrics", "error", err)
-		os.Exit(1)
-	}
-
-	// Seed the repository accessibility metrics so they appear on /metrics.
+// testCollect reseeds repository and workflow metrics from the fixed test data on every call.
+// It is used as the CollectFunc for the acceptance test server so that /metrics always
+// reflects the expected test state regardless of how many times it is scraped.
+func testCollect(_ context.Context) ([]server.Repository, error) {
+	repository.Accessible.Reset()
 	for _, r := range testRepos {
 		if err := repository.Set(r.Owner, r.Name, r.Accessible); err != nil {
-			slog.Error("setup: seed repository metric", "error", err)
-			os.Exit(1)
+			return nil, err
 		}
 	}
-
-	// Seed workflow metrics so run/job conclusion metrics appear on /metrics.
+	workflow.RunConclusion.Reset()
+	workflow.JobConclusion.Reset()
 	if err := workflow.Record("test-org", "repo-accessible", []github.RunWithJobs{
 		{
 			Run:  github.WorkflowRun{Name: "CI", HeadBranch: "main", Conclusion: "success"},
@@ -80,7 +76,18 @@ func TestMain(m *testing.M) {
 			Jobs: []github.Job{{Name: "build", Conclusion: "failure"}},
 		},
 	}); err != nil {
-		slog.Error("setup: seed workflow metrics", "error", err)
+		return nil, err
+	}
+	return testRepos, nil
+}
+
+// TestMain registers metrics, starts two real HTTP test servers (one with repos, one without),
+// triggers an initial /metrics scrape on the main server so the index page is populated,
+// delegates to m.Run so that Go's coverage instrumentation is flushed before os.Exit is called,
+// then tears down both servers.
+func TestMain(m *testing.M) {
+	if err := metrics.Register(prometheus.DefaultRegisterer); err != nil {
+		slog.Error("failed to register metrics", "error", err)
 		os.Exit(1)
 	}
 
@@ -93,10 +100,19 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	testSrv = httptest.NewServer(server.New(cfg.Port, testRepos))
+	testSrv = httptest.NewServer(server.New(cfg.Port, testCollect))
 	baseURL = testSrv.URL
 
-	noTargetsSrv = httptest.NewServer(server.New(cfg.Port, nil))
+	// Trigger an initial scrape so that lastRepos is populated and the index page
+	// shows repository data for scenarios that navigate to "/".
+	if _, err := http.Get(baseURL + "/metrics"); err != nil {
+		slog.Error("setup: initial metrics scrape failed", "error", err)
+		os.Exit(1)
+	}
+
+	noTargetsSrv = httptest.NewServer(server.New(cfg.Port, func(_ context.Context) ([]server.Repository, error) {
+		return nil, nil
+	}))
 	noTargetsURL = noTargetsSrv.URL
 
 	exitCode := m.Run()

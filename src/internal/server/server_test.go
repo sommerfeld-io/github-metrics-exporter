@@ -1,6 +1,8 @@
 package server_test
 
 import (
+	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -11,13 +13,25 @@ import (
 	"github.com/sommerfeld-io/github-metrics-exporter/internal/server"
 )
 
+func collectNothing(_ context.Context) ([]server.Repository, error) {
+	return nil, nil
+}
+
 func setup(t *testing.T) *http.ServeMux {
 	t.Helper()
 	reg := prometheus.NewRegistry()
 	if err := metrics.Register(reg); err != nil {
 		t.Fatalf("failed to register metrics: %v", err)
 	}
-	return server.New(9400, nil)
+	return server.New(9400, collectNothing)
+}
+
+// scrapeMetrics hits /metrics on mux, triggering the collect func and populating lastRepos.
+func scrapeMetrics(t *testing.T, mux *http.ServeMux) {
+	t.Helper()
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+	mux.ServeHTTP(rec, req)
 }
 
 func TestRootEndpointShouldReturnHTML(t *testing.T) {
@@ -122,7 +136,7 @@ func TestRootEndpointShouldDisplayConfiguredPort(t *testing.T) {
 	if err := metrics.Register(reg); err != nil {
 		t.Fatalf("failed to register metrics: %v", err)
 	}
-	mux := server.New(8080, nil)
+	mux := server.New(8080, collectNothing)
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	mux.ServeHTTP(rec, req)
@@ -137,7 +151,7 @@ func TestRootEndpointShouldNotDisplayUnconfiguredPort(t *testing.T) {
 	if err := metrics.Register(reg); err != nil {
 		t.Fatalf("failed to register metrics: %v", err)
 	}
-	mux := server.New(8080, nil)
+	mux := server.New(8080, collectNothing)
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	mux.ServeHTTP(rec, req)
@@ -192,6 +206,40 @@ func TestMetricsEndpointShouldReturnPlainText(t *testing.T) {
 	}
 }
 
+func TestMetricsEndpointShouldReturn500WhenCollectFails(t *testing.T) {
+	reg := prometheus.NewRegistry()
+	if err := metrics.Register(reg); err != nil {
+		t.Fatalf("failed to register metrics: %v", err)
+	}
+	mux := server.New(9400, func(_ context.Context) ([]server.Repository, error) {
+		return nil, errors.New("github API unavailable")
+	})
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Errorf("expected status 500 when collect fails, got %d", rec.Code)
+	}
+}
+
+func TestMetricsEndpointShouldNotReturn200WhenCollectFails(t *testing.T) {
+	reg := prometheus.NewRegistry()
+	if err := metrics.Register(reg); err != nil {
+		t.Fatalf("failed to register metrics: %v", err)
+	}
+	mux := server.New(9400, func(_ context.Context) ([]server.Repository, error) {
+		return nil, errors.New("github API unavailable")
+	})
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code == http.StatusOK {
+		t.Error("status must not be 200 when collect fails")
+	}
+}
+
 func TestRootEndpointShouldDisplayWarningWhenNoReposConfigured(t *testing.T) {
 	mux := setup(t)
 	rec := httptest.NewRecorder()
@@ -222,7 +270,11 @@ func TestRootEndpointShouldDisplayOwnerHeadingWhenReposPresent(t *testing.T) {
 	repos := []server.Repository{
 		{Owner: "test-org", Name: "repo1", Accessible: true},
 	}
-	mux := server.New(9400, repos)
+	mux := server.New(9400, func(_ context.Context) ([]server.Repository, error) {
+		return repos, nil
+	})
+	scrapeMetrics(t, mux)
+
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	mux.ServeHTTP(rec, req)
@@ -240,7 +292,11 @@ func TestRootEndpointShouldDisplayRepoNameWhenPresent(t *testing.T) {
 	repos := []server.Repository{
 		{Owner: "test-org", Name: "my-repo", Accessible: true},
 	}
-	mux := server.New(9400, repos)
+	mux := server.New(9400, func(_ context.Context) ([]server.Repository, error) {
+		return repos, nil
+	})
+	scrapeMetrics(t, mux)
+
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	mux.ServeHTTP(rec, req)
@@ -276,9 +332,14 @@ func TestRootEndpointShouldDisplayCorrectBadgeForAccessibility(t *testing.T) {
 			if err := metrics.Register(reg); err != nil {
 				t.Fatalf("failed to register metrics: %v", err)
 			}
-			mux := server.New(9400, []server.Repository{
+			repos := []server.Repository{
 				{Owner: "test-org", Name: "repo", Accessible: tc.accessible},
+			}
+			mux := server.New(9400, func(_ context.Context) ([]server.Repository, error) {
+				return repos, nil
 			})
+			scrapeMetrics(t, mux)
+
 			rec := httptest.NewRecorder()
 			req := httptest.NewRequest(http.MethodGet, "/", nil)
 			mux.ServeHTTP(rec, req)
