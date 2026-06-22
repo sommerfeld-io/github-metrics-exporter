@@ -306,3 +306,479 @@ func TestDiscoverShouldNotReturnNilForEmptyOrg(t *testing.T) {
 		t.Error("Discover must return an empty (non-nil) slice for an org with no repos")
 	}
 }
+
+// workflowRunJSON returns a minimal GitHub workflow run JSON object.
+func workflowRunJSON(id int64, name, headBranch, actor, event, conclusion, createdAt, updatedAt string) map[string]interface{} {
+	return map[string]interface{}{
+		"id":          id,
+		"name":        name,
+		"head_branch": headBranch,
+		"event":       event,
+		"status":      "completed",
+		"conclusion":  conclusion,
+		"created_at":  createdAt,
+		"updated_at":  updatedAt,
+		"actor":       map[string]interface{}{"login": actor},
+	}
+}
+
+// workflowRunsPageJSON wraps runs in the GitHub API envelope.
+func workflowRunsPageJSON(runs []map[string]interface{}) map[string]interface{} {
+	return map[string]interface{}{
+		"total_count":   len(runs),
+		"workflow_runs": runs,
+	}
+}
+
+// jobJSON returns a minimal GitHub job JSON object.
+func jobJSON(id int64, name, conclusion string) map[string]interface{} {
+	return map[string]interface{}{
+		"id":         id,
+		"name":       name,
+		"status":     "completed",
+		"conclusion": conclusion,
+	}
+}
+
+// jobsPageJSON wraps jobs in the GitHub API envelope.
+func jobsPageJSON(jobs []map[string]interface{}) map[string]interface{} {
+	return map[string]interface{}{
+		"total_count": len(jobs),
+		"jobs":        jobs,
+	}
+}
+
+func TestWorkflowRunsShouldReturnRunsForRepo(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/repos/owner/repo/actions/runs", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, workflowRunsPageJSON([]map[string]interface{}{
+			workflowRunJSON(1, "CI", "main", "alice", "push", "success", "2026-06-15T10:00:00Z", "2026-06-15T10:05:00Z"),
+			workflowRunJSON(2, "CI", "main", "bob", "push", "failure", "2026-06-16T10:00:00Z", "2026-06-16T10:05:00Z"),
+		}))
+	})
+	c, _ := newTestClient(t, mux)
+
+	runs, err := c.WorkflowRuns(context.Background(), "owner", "repo")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(runs) != 2 {
+		t.Errorf("expected 2 runs, got %d", len(runs))
+	}
+}
+
+func TestWorkflowRunsShouldNotReturnEmptySliceWhenRunsExist(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/repos/owner/repo/actions/runs", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, workflowRunsPageJSON([]map[string]interface{}{
+			workflowRunJSON(1, "CI", "main", "alice", "push", "success", "2026-06-15T10:00:00Z", "2026-06-15T10:05:00Z"),
+		}))
+	})
+	c, _ := newTestClient(t, mux)
+
+	runs, err := c.WorkflowRuns(context.Background(), "owner", "repo")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(runs) == 0 {
+		t.Error("expected non-empty slice when repo has workflow runs")
+	}
+}
+
+func TestWorkflowRunsShouldReturnEmptySliceWhenNoRunsExist(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/repos/owner/repo/actions/runs", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, workflowRunsPageJSON([]map[string]interface{}{}))
+	})
+	c, _ := newTestClient(t, mux)
+
+	runs, err := c.WorkflowRuns(context.Background(), "owner", "repo")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(runs) != 0 {
+		t.Errorf("expected empty slice, got %d runs", len(runs))
+	}
+}
+
+func TestWorkflowRunsShouldNotReturnNilWhenNoRunsExist(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/repos/owner/repo/actions/runs", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, workflowRunsPageJSON([]map[string]interface{}{}))
+	})
+	c, _ := newTestClient(t, mux)
+
+	runs, err := c.WorkflowRuns(context.Background(), "owner", "repo")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if runs == nil {
+		t.Error("WorkflowRuns must return a non-nil slice even when the repo has no runs")
+	}
+}
+
+func TestWorkflowRunsShouldPopulateRunScalarFields(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/repos/owner/repo/actions/runs", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, workflowRunsPageJSON([]map[string]interface{}{
+			workflowRunJSON(42, "Build", "feature-x", "alice", "push", "success",
+				"2026-06-15T10:00:00Z", "2026-06-15T10:05:00Z"),
+		}))
+	})
+	c, _ := newTestClient(t, mux)
+
+	runs, err := c.WorkflowRuns(context.Background(), "owner", "repo")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(runs) != 1 {
+		t.Fatalf("expected 1 run, got %d", len(runs))
+	}
+	r := runs[0]
+	if r.ID != 42 {
+		t.Errorf("expected ID 42, got %d", r.ID)
+	}
+	if r.Name != "Build" {
+		t.Errorf("expected Name 'Build', got %q", r.Name)
+	}
+	if r.HeadBranch != "feature-x" {
+		t.Errorf("expected HeadBranch 'feature-x', got %q", r.HeadBranch)
+	}
+	if r.Actor != "alice" {
+		t.Errorf("expected Actor 'alice', got %q", r.Actor)
+	}
+	if r.Event != "push" {
+		t.Errorf("expected Event 'push', got %q", r.Event)
+	}
+	if r.Conclusion != "success" {
+		t.Errorf("expected Conclusion 'success', got %q", r.Conclusion)
+	}
+}
+
+func TestWorkflowRunsShouldPopulateRunTimestamps(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/repos/owner/repo/actions/runs", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, workflowRunsPageJSON([]map[string]interface{}{
+			workflowRunJSON(42, "Build", "feature-x", "alice", "push", "success",
+				"2026-06-15T10:00:00Z", "2026-06-15T10:05:00Z"),
+		}))
+	})
+	c, _ := newTestClient(t, mux)
+
+	runs, err := c.WorkflowRuns(context.Background(), "owner", "repo")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(runs) != 1 {
+		t.Fatalf("expected 1 run, got %d", len(runs))
+	}
+	r := runs[0]
+	if r.CreatedAt.IsZero() {
+		t.Error("CreatedAt must not be zero")
+	}
+	if r.UpdatedAt.IsZero() {
+		t.Error("UpdatedAt must not be zero")
+	}
+}
+
+func TestWorkflowRunsShouldNotReturnZeroIDInMetadata(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/repos/owner/repo/actions/runs", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, workflowRunsPageJSON([]map[string]interface{}{
+			workflowRunJSON(99, "CI", "main", "alice", "push", "success",
+				"2026-06-15T10:00:00Z", "2026-06-15T10:05:00Z"),
+		}))
+	})
+	c, _ := newTestClient(t, mux)
+
+	runs, _ := c.WorkflowRuns(context.Background(), "owner", "repo")
+	if len(runs) > 0 && runs[0].ID == 0 {
+		t.Error("run ID must not be zero when the API returns a non-zero ID")
+	}
+}
+
+func TestWorkflowRunsShouldNotSendCreatedQueryFilter(t *testing.T) {
+	var receivedCreated string
+	mux := http.NewServeMux()
+	mux.HandleFunc("/repos/owner/repo/actions/runs", func(w http.ResponseWriter, r *http.Request) {
+		receivedCreated = r.URL.Query().Get("created")
+		writeJSON(w, http.StatusOK, workflowRunsPageJSON([]map[string]interface{}{}))
+	})
+	c, _ := newTestClient(t, mux)
+
+	_, _ = c.WorkflowRuns(context.Background(), "owner", "repo")
+
+	if receivedCreated != "" {
+		t.Errorf("WorkflowRuns must never send a created filter; got %q", receivedCreated)
+	}
+}
+
+func TestWorkflowRunsShouldReturnErrorOnServerError(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/repos/owner/repo/actions/runs", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"message": "Internal Server Error"})
+	})
+	c, _ := newTestClient(t, mux)
+
+	_, err := c.WorkflowRuns(context.Background(), "owner", "repo")
+	if err == nil {
+		t.Error("expected error on 500, got nil")
+	}
+}
+
+func TestJobsForRunShouldReturnAllJobs(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/repos/owner/repo/actions/runs/123/jobs", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, jobsPageJSON([]map[string]interface{}{
+			jobJSON(1, "build", "success"),
+			jobJSON(2, "test", "failure"),
+		}))
+	})
+	c, _ := newTestClient(t, mux)
+
+	jobs, err := c.JobsForRun(context.Background(), "owner", "repo", 123)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(jobs) != 2 {
+		t.Errorf("expected 2 jobs, got %d", len(jobs))
+	}
+}
+
+func TestJobsForRunShouldNotReturnEmptySliceWhenJobsExist(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/repos/owner/repo/actions/runs/123/jobs", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, jobsPageJSON([]map[string]interface{}{
+			jobJSON(1, "build", "success"),
+		}))
+	})
+	c, _ := newTestClient(t, mux)
+
+	jobs, err := c.JobsForRun(context.Background(), "owner", "repo", 123)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(jobs) == 0 {
+		t.Error("expected non-empty slice when run has jobs")
+	}
+}
+
+func TestJobsForRunShouldReturnEmptySliceWhenNoJobsExist(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/repos/owner/repo/actions/runs/123/jobs", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, jobsPageJSON([]map[string]interface{}{}))
+	})
+	c, _ := newTestClient(t, mux)
+
+	jobs, err := c.JobsForRun(context.Background(), "owner", "repo", 123)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(jobs) != 0 {
+		t.Errorf("expected empty slice, got %d jobs", len(jobs))
+	}
+}
+
+func TestJobsForRunShouldNotReturnNilWhenNoJobsExist(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/repos/owner/repo/actions/runs/123/jobs", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, jobsPageJSON([]map[string]interface{}{}))
+	})
+	c, _ := newTestClient(t, mux)
+
+	jobs, err := c.JobsForRun(context.Background(), "owner", "repo", 123)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if jobs == nil {
+		t.Error("JobsForRun must return a non-nil slice even when the run has no jobs")
+	}
+}
+
+func TestJobsForRunShouldPopulateJobFields(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/repos/owner/repo/actions/runs/123/jobs", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, jobsPageJSON([]map[string]interface{}{
+			jobJSON(42, "build-and-test", "success"),
+		}))
+	})
+	c, _ := newTestClient(t, mux)
+
+	jobs, err := c.JobsForRun(context.Background(), "owner", "repo", 123)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(jobs) != 1 {
+		t.Fatalf("expected 1 job, got %d", len(jobs))
+	}
+	j := jobs[0]
+	if j.ID != 42 {
+		t.Errorf("expected ID 42, got %d", j.ID)
+	}
+	if j.Name != "build-and-test" {
+		t.Errorf("expected Name 'build-and-test', got %q", j.Name)
+	}
+	if j.Conclusion != "success" {
+		t.Errorf("expected Conclusion 'success', got %q", j.Conclusion)
+	}
+}
+
+func TestJobsForRunShouldNotReturnZeroIDInJobFields(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/repos/owner/repo/actions/runs/123/jobs", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, jobsPageJSON([]map[string]interface{}{
+			jobJSON(99, "lint", "success"),
+		}))
+	})
+	c, _ := newTestClient(t, mux)
+
+	jobs, _ := c.JobsForRun(context.Background(), "owner", "repo", 123)
+	if len(jobs) > 0 && jobs[0].ID == 0 {
+		t.Error("job ID must not be zero when the API returns a non-zero ID")
+	}
+}
+
+func TestJobsForRunShouldSupportAllConclusionValues(t *testing.T) {
+	conclusions := []string{
+		"success", "failure", "cancelled", "skipped",
+		"timed_out", "action_required", "neutral", "stale",
+	}
+	for _, conclusion := range conclusions {
+		t.Run(conclusion, func(t *testing.T) {
+			mux := http.NewServeMux()
+			mux.HandleFunc("/repos/owner/repo/actions/runs/1/jobs", func(w http.ResponseWriter, r *http.Request) {
+				writeJSON(w, http.StatusOK, jobsPageJSON([]map[string]interface{}{
+					jobJSON(1, "job", conclusion),
+				}))
+			})
+			c, _ := newTestClient(t, mux)
+
+			jobs, err := c.JobsForRun(context.Background(), "owner", "repo", 1)
+			if err != nil {
+				t.Fatalf("unexpected error for conclusion %q: %v", conclusion, err)
+			}
+			if len(jobs) != 1 {
+				t.Fatalf("expected 1 job, got %d", len(jobs))
+			}
+			if jobs[0].Conclusion != conclusion {
+				t.Errorf("expected conclusion %q, got %q", conclusion, jobs[0].Conclusion)
+			}
+		})
+	}
+}
+
+func TestJobsForRunShouldHandlePagination(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/repos/owner/repo/actions/runs/123/jobs", func(w http.ResponseWriter, r *http.Request) {
+		page := r.URL.Query().Get("page")
+		if page == "2" {
+			writeJSON(w, http.StatusOK, jobsPageJSON([]map[string]interface{}{
+				jobJSON(3, "deploy", "success"),
+				jobJSON(4, "smoke-test", "success"),
+			}))
+			return
+		}
+		serverURL := "http://" + r.Host
+		w.Header().Set("Link", fmt.Sprintf(`<%s/repos/owner/repo/actions/runs/123/jobs?page=2>; rel="next"`, serverURL))
+		writeJSON(w, http.StatusOK, jobsPageJSON([]map[string]interface{}{
+			jobJSON(1, "build", "success"),
+			jobJSON(2, "test", "failure"),
+		}))
+	})
+	c, _ := newTestClient(t, mux)
+
+	jobs, err := c.JobsForRun(context.Background(), "owner", "repo", 123)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(jobs) != 4 {
+		t.Errorf("expected 4 jobs across 2 pages, got %d", len(jobs))
+	}
+}
+
+func TestJobsForRunShouldReturnErrorOnServerError(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/repos/owner/repo/actions/runs/123/jobs", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"message": "Internal Server Error"})
+	})
+	c, _ := newTestClient(t, mux)
+
+	_, err := c.JobsForRun(context.Background(), "owner", "repo", 123)
+	if err == nil {
+		t.Error("expected error on 500, got nil")
+	}
+}
+
+func TestFetchWorkflowsWithJobsShouldReturnRunsWithJobs(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/repos/owner/repo/actions/runs", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, workflowRunsPageJSON([]map[string]interface{}{
+			workflowRunJSON(1, "CI", "main", "alice", "push", "success", "2026-06-15T10:00:00Z", "2026-06-15T10:05:00Z"),
+		}))
+	})
+	mux.HandleFunc("/repos/owner/repo/actions/runs/1/jobs", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, jobsPageJSON([]map[string]interface{}{
+			jobJSON(10, "build", "success"),
+			jobJSON(11, "test", "success"),
+		}))
+	})
+	c, _ := newTestClient(t, mux)
+
+	result, err := c.FetchWorkflowsWithJobs(context.Background(), "owner", "repo")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(result) != 1 {
+		t.Fatalf("expected 1 run-with-jobs, got %d", len(result))
+	}
+	if len(result[0].Jobs) != 2 {
+		t.Errorf("expected 2 jobs, got %d", len(result[0].Jobs))
+	}
+}
+
+func TestFetchWorkflowsWithJobsShouldContinueWhenJobFetchFails(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/repos/owner/repo/actions/runs", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, workflowRunsPageJSON([]map[string]interface{}{
+			workflowRunJSON(1, "CI", "main", "alice", "push", "success", "2026-06-15T10:00:00Z", "2026-06-15T10:05:00Z"),
+			workflowRunJSON(2, "CI", "main", "bob", "push", "failure", "2026-06-16T10:00:00Z", "2026-06-16T10:05:00Z"),
+		}))
+	})
+	// Run 1 jobs: returns error
+	mux.HandleFunc("/repos/owner/repo/actions/runs/1/jobs", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"message": "Internal Server Error"})
+	})
+	// Run 2 jobs: returns successfully
+	mux.HandleFunc("/repos/owner/repo/actions/runs/2/jobs", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, jobsPageJSON([]map[string]interface{}{
+			jobJSON(20, "build", "failure"),
+		}))
+	})
+	c, _ := newTestClient(t, mux)
+
+	result, err := c.FetchWorkflowsWithJobs(context.Background(), "owner", "repo")
+	if err != nil {
+		t.Fatalf("expected no top-level error, got %v", err)
+	}
+	if len(result) != 2 {
+		t.Fatalf("expected 2 runs (both present despite job-fetch error), got %d", len(result))
+	}
+}
+
+func TestFetchWorkflowsWithJobsShouldReturnEmptyJobsForFailedRunJobFetch(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/repos/owner/repo/actions/runs", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, workflowRunsPageJSON([]map[string]interface{}{
+			workflowRunJSON(1, "CI", "main", "alice", "push", "success", "2026-06-15T10:00:00Z", "2026-06-15T10:05:00Z"),
+		}))
+	})
+	mux.HandleFunc("/repos/owner/repo/actions/runs/1/jobs", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"message": "Internal Server Error"})
+	})
+	c, _ := newTestClient(t, mux)
+
+	result, _ := c.FetchWorkflowsWithJobs(context.Background(), "owner", "repo")
+	if len(result) > 0 && result[0].Jobs == nil {
+		t.Error("Jobs must be a non-nil empty slice (not nil) when job fetch fails")
+	}
+}
