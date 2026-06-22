@@ -2,7 +2,10 @@
   "permissions": {
     "allow": [
       "Bash(go test *)",
-      "Bash(task go:build)"
+      "Bash(task go:build)",
+      "WebSearch",
+      "Bash(task lint *)",
+      "Bash(task go:lint)"
     ]
   }
 }
