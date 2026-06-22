@@ -15,15 +15,14 @@ import (
 )
 
 type workflowScenarioState struct {
-	mux                   *http.ServeMux
-	mockSrv               *httptest.Server
-	client                *github.Client
-	originalLogger        *slog.Logger
-	receivedCreatedFilter string
-	runsResult            []github.WorkflowRun
-	jobsResult            []github.Job
-	withJobsResult        []github.RunWithJobs
-	fetchErr              error
+	mux              *http.ServeMux
+	mockSrv          *httptest.Server
+	client           *github.Client
+	originalLogger   *slog.Logger
+	workflowsResult  []github.Workflow
+	jobsResult       []github.Job
+	withJobsResult   []github.RunWithJobs
+	fetchErr         error
 }
 
 func (s *workflowScenarioState) writeJSON(w http.ResponseWriter, status int, body interface{}) {
@@ -32,17 +31,22 @@ func (s *workflowScenarioState) writeJSON(w http.ResponseWriter, status int, bod
 	_ = json.NewEncoder(w).Encode(body)
 }
 
-func (s *workflowScenarioState) runJSON(id int64, name string) map[string]interface{} {
-	return map[string]interface{}{
+func (s *workflowScenarioState) workflowDefJSON(id int64, name, path string) map[string]interface{} {
+	return map[string]interface{}{"id": id, "name": name, "path": path}
+}
+
+func (s *workflowScenarioState) workflowsPageJSON(wfs []map[string]interface{}) map[string]interface{} {
+	return map[string]interface{}{"total_count": len(wfs), "workflows": wfs}
+}
+
+func (s *workflowScenarioState) runPageJSON(id int64, name string) map[string]interface{} {
+	run := map[string]interface{}{
 		"id": id, "name": name, "head_branch": "main",
 		"event": "push", "status": "completed", "conclusion": "success",
 		"created_at": "2026-06-15T10:00:00Z", "updated_at": "2026-06-15T10:05:00Z",
 		"actor": map[string]interface{}{"login": "alice"},
 	}
-}
-
-func (s *workflowScenarioState) runsPageJSON(runs []map[string]interface{}) map[string]interface{} {
-	return map[string]interface{}{"total_count": len(runs), "workflow_runs": runs}
+	return map[string]interface{}{"total_count": 1, "workflow_runs": []interface{}{run}}
 }
 
 func (s *workflowScenarioState) jobJSON(id int64, name, conclusion string) map[string]interface{} {
@@ -55,33 +59,25 @@ func (s *workflowScenarioState) jobsPageJSON(jobs []map[string]interface{}) map[
 	return map[string]interface{}{"total_count": len(jobs), "jobs": jobs}
 }
 
-// aRepositoryWithWorkflowRunsAvailable registers a single-page mock returning 2 runs.
-// The handler captures the "created" query parameter so the no-filter assertion can check it.
-func (s *workflowScenarioState) aRepositoryWithWorkflowRunsAvailable() error {
-	s.mux.HandleFunc("/repos/owner/repo/actions/runs", func(w http.ResponseWriter, r *http.Request) {
-		s.receivedCreatedFilter = r.URL.Query().Get("created")
-		s.writeJSON(w, http.StatusOK, s.runsPageJSON([]map[string]interface{}{
-			s.runJSON(1, "CI"), s.runJSON(2, "CI"),
+// aRepositoryWithWorkflowDefinitionsAvailable registers a mock returning 2 workflow definitions.
+func (s *workflowScenarioState) aRepositoryWithWorkflowDefinitionsAvailable() error {
+	s.mux.HandleFunc("/repos/owner/repo/actions/workflows", func(w http.ResponseWriter, r *http.Request) {
+		s.writeJSON(w, http.StatusOK, s.workflowsPageJSON([]map[string]interface{}{
+			s.workflowDefJSON(1, "CI", ".github/workflows/ci.yml"),
+			s.workflowDefJSON(2, "Release", ".github/workflows/release.yml"),
 		}))
 	})
 	return nil
 }
 
-func (s *workflowScenarioState) theExporterFetchesWorkflowRunsForTheRepository() error {
-	s.runsResult, s.fetchErr = s.client.WorkflowRuns(context.Background(), "owner", "repo")
+func (s *workflowScenarioState) theExporterListsWorkflowDefinitionsForTheRepository() error {
+	s.workflowsResult, s.fetchErr = s.client.ListWorkflows(context.Background(), "owner", "repo")
 	return nil
 }
 
-func (s *workflowScenarioState) theMostRecentWorkflowRunsAreReturned() error {
-	if len(s.runsResult) == 0 {
-		return fmt.Errorf("expected workflow runs to be returned, got none")
-	}
-	return nil
-}
-
-func (s *workflowScenarioState) noTimeWindowFilterIsAppliedToTheGitHubAPIRequest() error {
-	if s.receivedCreatedFilter != "" {
-		return fmt.Errorf("expected no time-window filter, but got created=%q", s.receivedCreatedFilter)
+func (s *workflowScenarioState) allWorkflowDefinitionsAreReturned() error {
+	if len(s.workflowsResult) == 0 {
+		return fmt.Errorf("expected workflow definitions to be returned, got none")
 	}
 	return nil
 }
@@ -115,15 +111,23 @@ func (s *workflowScenarioState) allJobsAreReturnedWithTheirNameAndConclusion(exp
 	return nil
 }
 
-// aRepositoryWith2WorkflowRunsWhereTheFirstRunHasAFailingJobsEndpoint sets up:
-// - runs endpoint returning 2 runs (IDs 1 and 2)
-// - run 1 jobs endpoint returns 500
-// - run 2 jobs endpoint returns 1 successful job
-func (s *workflowScenarioState) aRepositoryWith2WorkflowRunsWhereTheFirstRunHasAFailingJobsEndpoint() error {
-	s.mux.HandleFunc("/repos/owner/repo/actions/runs", func(w http.ResponseWriter, r *http.Request) {
-		s.writeJSON(w, http.StatusOK, s.runsPageJSON([]map[string]interface{}{
-			s.runJSON(1, "CI"), s.runJSON(2, "CI"),
+// aRepositoryWith2WorkflowsWhereTheFirstRunHasAFailingJobsEndpoint sets up:
+//   - workflows endpoint returning 2 workflow definitions (IDs 1 and 2)
+//   - per-workflow run endpoints returning run ID 1 and run ID 2 respectively
+//   - run 1 jobs endpoint returns 500
+//   - run 2 jobs endpoint returns 1 successful job
+func (s *workflowScenarioState) aRepositoryWith2WorkflowsWhereTheFirstRunHasAFailingJobsEndpoint() error {
+	s.mux.HandleFunc("/repos/owner/repo/actions/workflows", func(w http.ResponseWriter, r *http.Request) {
+		s.writeJSON(w, http.StatusOK, s.workflowsPageJSON([]map[string]interface{}{
+			s.workflowDefJSON(1, "CI", ".github/workflows/ci.yml"),
+			s.workflowDefJSON(2, "Release", ".github/workflows/release.yml"),
 		}))
+	})
+	s.mux.HandleFunc("/repos/owner/repo/actions/workflows/1/runs", func(w http.ResponseWriter, r *http.Request) {
+		s.writeJSON(w, http.StatusOK, s.runPageJSON(1, "CI"))
+	})
+	s.mux.HandleFunc("/repos/owner/repo/actions/workflows/2/runs", func(w http.ResponseWriter, r *http.Request) {
+		s.writeJSON(w, http.StatusOK, s.runPageJSON(2, "Release"))
 	})
 	s.mux.HandleFunc("/repos/owner/repo/actions/runs/1/jobs", func(w http.ResponseWriter, r *http.Request) {
 		s.writeJSON(w, http.StatusInternalServerError, map[string]string{"message": "Internal Server Error"})
@@ -194,8 +198,7 @@ func InitializeWorkflowScenario(ctx *godog.ScenarioContext) {
 			return goCtx, fmt.Errorf("setup: parse mock server URL: %w", err)
 		}
 		s.client.SetBaseURL(u)
-		s.receivedCreatedFilter = ""
-		s.runsResult = nil
+		s.workflowsResult = nil
 		s.jobsResult = nil
 		s.withJobsResult = nil
 		s.fetchErr = nil
@@ -210,14 +213,13 @@ func InitializeWorkflowScenario(ctx *godog.ScenarioContext) {
 		return goCtx, nil
 	})
 
-	ctx.Step(`^a repository with workflow runs available from the GitHub API$`, s.aRepositoryWithWorkflowRunsAvailable)
-	ctx.Step(`^the exporter fetches workflow runs for the repository$`, s.theExporterFetchesWorkflowRunsForTheRepository)
-	ctx.Step(`^the most recent workflow runs are returned$`, s.theMostRecentWorkflowRunsAreReturned)
-	ctx.Step(`^no time-window filter is applied to the GitHub API request$`, s.noTimeWindowFilterIsAppliedToTheGitHubAPIRequest)
+	ctx.Step(`^a repository with workflow definitions available from the GitHub API$`, s.aRepositoryWithWorkflowDefinitionsAvailable)
+	ctx.Step(`^the exporter lists workflow definitions for the repository$`, s.theExporterListsWorkflowDefinitionsForTheRepository)
+	ctx.Step(`^all workflow definitions are returned$`, s.allWorkflowDefinitionsAreReturned)
 	ctx.Step(`^a workflow run with 3 jobs$`, s.aWorkflowRunWith3Jobs)
 	ctx.Step(`^the exporter fetches jobs for that run$`, s.theExporterFetchesJobsForThatRun)
 	ctx.Step(`^all (\d+) jobs are returned with their name and conclusion$`, s.allJobsAreReturnedWithTheirNameAndConclusion)
-	ctx.Step(`^a repository with 2 workflow runs where the first run has a failing jobs endpoint$`, s.aRepositoryWith2WorkflowRunsWhereTheFirstRunHasAFailingJobsEndpoint)
+	ctx.Step(`^a repository with 2 workflows where the first run has a failing jobs endpoint$`, s.aRepositoryWith2WorkflowsWhereTheFirstRunHasAFailingJobsEndpoint)
 	ctx.Step(`^the exporter fetches workflows with jobs for the repository$`, s.theExporterFetchesWorkflowsWithJobsForTheRepository)
 	ctx.Step(`^the fetch does not return a top-level error$`, s.theFetchDoesNotReturnATopLevelError)
 	ctx.Step(`^both runs are present in the result$`, s.bothRunsArePresentInTheResult)

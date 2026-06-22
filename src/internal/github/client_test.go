@@ -349,217 +349,136 @@ func jobsPageJSON(jobs []map[string]interface{}) map[string]interface{} {
 	}
 }
 
-func TestWorkflowRunsShouldReturnRunsForRepo(t *testing.T) {
+// workflowDefJSON returns a minimal GitHub workflow definition JSON object.
+func workflowDefJSON(id int64, name, path string) map[string]interface{} {
+	return map[string]interface{}{"id": id, "name": name, "path": path, "state": "active"}
+}
+
+// workflowsPageJSON wraps workflow definitions in the GitHub API envelope.
+func workflowsPageJSON(wfs []map[string]interface{}) map[string]interface{} {
+	return map[string]interface{}{"total_count": len(wfs), "workflows": wfs}
+}
+
+func TestListWorkflowsShouldReturnWorkflowsForRepo(t *testing.T) {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/repos/owner/repo/actions/runs", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, http.StatusOK, workflowRunsPageJSON([]map[string]interface{}{
-			workflowRunJSON(1, "CI", ".github/workflows/ci.yml", "main", "alice", "push", "success", "2026-06-15T10:00:00Z", "2026-06-15T10:05:00Z"),
-			workflowRunJSON(2, "CI", ".github/workflows/ci.yml", "main", "bob", "push", "failure", "2026-06-16T10:00:00Z", "2026-06-16T10:05:00Z"),
+	mux.HandleFunc("/repos/owner/repo/actions/workflows", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, workflowsPageJSON([]map[string]interface{}{
+			workflowDefJSON(1, "CI", ".github/workflows/ci.yml"),
+			workflowDefJSON(2, "Release", ".github/workflows/release.yml"),
 		}))
 	})
 	c, _ := newTestClient(t, mux)
 
-	runs, err := c.WorkflowRuns(context.Background(), "owner", "repo")
+	wfs, err := c.ListWorkflows(context.Background(), "owner", "repo")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(runs) != 2 {
-		t.Errorf("expected 2 runs, got %d", len(runs))
+	if len(wfs) != 2 {
+		t.Errorf("expected 2 workflows, got %d", len(wfs))
 	}
 }
 
-func TestWorkflowRunsShouldNotReturnEmptySliceWhenRunsExist(t *testing.T) {
+func TestListWorkflowsShouldNotReturnEmptySliceWhenWorkflowsExist(t *testing.T) {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/repos/owner/repo/actions/runs", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, http.StatusOK, workflowRunsPageJSON([]map[string]interface{}{
-			workflowRunJSON(1, "CI", ".github/workflows/ci.yml", "main", "alice", "push", "success", "2026-06-15T10:00:00Z", "2026-06-15T10:05:00Z"),
+	mux.HandleFunc("/repos/owner/repo/actions/workflows", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, workflowsPageJSON([]map[string]interface{}{
+			workflowDefJSON(1, "CI", ".github/workflows/ci.yml"),
 		}))
 	})
 	c, _ := newTestClient(t, mux)
 
-	runs, err := c.WorkflowRuns(context.Background(), "owner", "repo")
+	wfs, err := c.ListWorkflows(context.Background(), "owner", "repo")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(runs) == 0 {
-		t.Error("expected non-empty slice when repo has workflow runs")
+	if len(wfs) == 0 {
+		t.Error("expected non-empty slice when repo has workflows")
 	}
 }
 
-func TestWorkflowRunsShouldReturnEmptySliceWhenNoRunsExist(t *testing.T) {
+func TestListWorkflowsShouldReturnEmptySliceWhenNoWorkflowsExist(t *testing.T) {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/repos/owner/repo/actions/runs", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, http.StatusOK, workflowRunsPageJSON([]map[string]interface{}{}))
+	mux.HandleFunc("/repos/owner/repo/actions/workflows", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, workflowsPageJSON([]map[string]interface{}{}))
 	})
 	c, _ := newTestClient(t, mux)
 
-	runs, err := c.WorkflowRuns(context.Background(), "owner", "repo")
+	wfs, err := c.ListWorkflows(context.Background(), "owner", "repo")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(runs) != 0 {
-		t.Errorf("expected empty slice, got %d runs", len(runs))
+	if len(wfs) != 0 {
+		t.Errorf("expected empty slice, got %d workflows", len(wfs))
 	}
 }
 
-func TestWorkflowRunsShouldNotReturnNilWhenNoRunsExist(t *testing.T) {
+func TestListWorkflowsShouldNotReturnNilWhenNoWorkflowsExist(t *testing.T) {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/repos/owner/repo/actions/runs", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, http.StatusOK, workflowRunsPageJSON([]map[string]interface{}{}))
+	mux.HandleFunc("/repos/owner/repo/actions/workflows", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, workflowsPageJSON([]map[string]interface{}{}))
 	})
 	c, _ := newTestClient(t, mux)
 
-	runs, err := c.WorkflowRuns(context.Background(), "owner", "repo")
+	wfs, err := c.ListWorkflows(context.Background(), "owner", "repo")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if runs == nil {
-		t.Error("WorkflowRuns must return a non-nil slice even when the repo has no runs")
+	if wfs == nil {
+		t.Error("ListWorkflows must return a non-nil slice even when the repo has no workflows")
 	}
 }
 
-func TestWorkflowRunsShouldPopulateRunScalarFields(t *testing.T) {
+func TestListWorkflowsShouldPopulateFields(t *testing.T) {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/repos/owner/repo/actions/runs", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, http.StatusOK, workflowRunsPageJSON([]map[string]interface{}{
-			workflowRunJSON(42, "Build", ".github/workflows/build.yml", "feature-x", "alice", "push", "success",
-				"2026-06-15T10:00:00Z", "2026-06-15T10:05:00Z"),
+	mux.HandleFunc("/repos/owner/repo/actions/workflows", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, workflowsPageJSON([]map[string]interface{}{
+			workflowDefJSON(42, "Pipeline", ".github/workflows/pipeline.yml"),
 		}))
 	})
 	c, _ := newTestClient(t, mux)
 
-	runs, err := c.WorkflowRuns(context.Background(), "owner", "repo")
+	wfs, err := c.ListWorkflows(context.Background(), "owner", "repo")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(runs) != 1 {
-		t.Fatalf("expected 1 run, got %d", len(runs))
+	if len(wfs) != 1 {
+		t.Fatalf("expected 1 workflow, got %d", len(wfs))
 	}
-	r := runs[0]
-	if r.ID != 42 {
-		t.Errorf("expected ID 42, got %d", r.ID)
+	wf := wfs[0]
+	if wf.ID != 42 {
+		t.Errorf("expected ID 42, got %d", wf.ID)
 	}
-	if r.Name != "Build" {
-		t.Errorf("expected Name 'Build', got %q", r.Name)
+	if wf.Name != "Pipeline" {
+		t.Errorf("expected Name 'Pipeline', got %q", wf.Name)
 	}
-	if r.HeadBranch != "feature-x" {
-		t.Errorf("expected HeadBranch 'feature-x', got %q", r.HeadBranch)
-	}
-	if r.Actor != "alice" {
-		t.Errorf("expected Actor 'alice', got %q", r.Actor)
-	}
-	if r.Event != "push" {
-		t.Errorf("expected Event 'push', got %q", r.Event)
-	}
-	if r.Conclusion != "success" {
-		t.Errorf("expected Conclusion 'success', got %q", r.Conclusion)
+	if wf.Path != ".github/workflows/pipeline.yml" {
+		t.Errorf("expected Path '.github/workflows/pipeline.yml', got %q", wf.Path)
 	}
 }
 
-func TestWorkflowRunsShouldPopulatePath(t *testing.T) {
+func TestListWorkflowsShouldNotReturnEmptyPathWhenAPIProvides(t *testing.T) {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/repos/owner/repo/actions/runs", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, http.StatusOK, workflowRunsPageJSON([]map[string]interface{}{
-			workflowRunJSON(1, "CI", ".github/workflows/ci.yml", "main", "alice", "push", "success",
-				"2026-06-15T10:00:00Z", "2026-06-15T10:05:00Z"),
+	mux.HandleFunc("/repos/owner/repo/actions/workflows", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, workflowsPageJSON([]map[string]interface{}{
+			workflowDefJSON(1, "CI", ".github/workflows/ci.yml"),
 		}))
 	})
 	c, _ := newTestClient(t, mux)
 
-	runs, err := c.WorkflowRuns(context.Background(), "owner", "repo")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(runs) != 1 {
-		t.Fatalf("expected 1 run, got %d", len(runs))
-	}
-	if runs[0].Path != ".github/workflows/ci.yml" {
-		t.Errorf("expected Path '.github/workflows/ci.yml', got %q", runs[0].Path)
-	}
-}
-
-func TestWorkflowRunsShouldNotReturnEmptyPathWhenAPIProvidesIt(t *testing.T) {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/repos/owner/repo/actions/runs", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, http.StatusOK, workflowRunsPageJSON([]map[string]interface{}{
-			workflowRunJSON(1, "CI", ".github/workflows/ci.yml", "main", "alice", "push", "success",
-				"2026-06-15T10:00:00Z", "2026-06-15T10:05:00Z"),
-		}))
-	})
-	c, _ := newTestClient(t, mux)
-
-	runs, _ := c.WorkflowRuns(context.Background(), "owner", "repo")
-	if len(runs) > 0 && runs[0].Path == "" {
+	wfs, _ := c.ListWorkflows(context.Background(), "owner", "repo")
+	if len(wfs) > 0 && wfs[0].Path == "" {
 		t.Error("Path must not be empty when the API response contains a path")
 	}
 }
 
-func TestWorkflowRunsShouldPopulateRunTimestamps(t *testing.T) {
+func TestListWorkflowsShouldReturnErrorOnServerError(t *testing.T) {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/repos/owner/repo/actions/runs", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, http.StatusOK, workflowRunsPageJSON([]map[string]interface{}{
-			workflowRunJSON(42, "Build", ".github/workflows/build.yml", "feature-x", "alice", "push", "success",
-				"2026-06-15T10:00:00Z", "2026-06-15T10:05:00Z"),
-		}))
-	})
-	c, _ := newTestClient(t, mux)
-
-	runs, err := c.WorkflowRuns(context.Background(), "owner", "repo")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(runs) != 1 {
-		t.Fatalf("expected 1 run, got %d", len(runs))
-	}
-	r := runs[0]
-	if r.CreatedAt.IsZero() {
-		t.Error("CreatedAt must not be zero")
-	}
-	if r.UpdatedAt.IsZero() {
-		t.Error("UpdatedAt must not be zero")
-	}
-}
-
-func TestWorkflowRunsShouldNotReturnZeroIDInMetadata(t *testing.T) {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/repos/owner/repo/actions/runs", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, http.StatusOK, workflowRunsPageJSON([]map[string]interface{}{
-			workflowRunJSON(99, "CI", ".github/workflows/ci.yml", "main", "alice", "push", "success",
-				"2026-06-15T10:00:00Z", "2026-06-15T10:05:00Z"),
-		}))
-	})
-	c, _ := newTestClient(t, mux)
-
-	runs, _ := c.WorkflowRuns(context.Background(), "owner", "repo")
-	if len(runs) > 0 && runs[0].ID == 0 {
-		t.Error("run ID must not be zero when the API returns a non-zero ID")
-	}
-}
-
-func TestWorkflowRunsShouldNotSendCreatedQueryFilter(t *testing.T) {
-	var receivedCreated string
-	mux := http.NewServeMux()
-	mux.HandleFunc("/repos/owner/repo/actions/runs", func(w http.ResponseWriter, r *http.Request) {
-		receivedCreated = r.URL.Query().Get("created")
-		writeJSON(w, http.StatusOK, workflowRunsPageJSON([]map[string]interface{}{}))
-	})
-	c, _ := newTestClient(t, mux)
-
-	_, _ = c.WorkflowRuns(context.Background(), "owner", "repo")
-
-	if receivedCreated != "" {
-		t.Errorf("WorkflowRuns must never send a created filter; got %q", receivedCreated)
-	}
-}
-
-func TestWorkflowRunsShouldReturnErrorOnServerError(t *testing.T) {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/repos/owner/repo/actions/runs", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/repos/owner/repo/actions/workflows", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"message": "Internal Server Error"})
 	})
 	c, _ := newTestClient(t, mux)
 
-	_, err := c.WorkflowRuns(context.Background(), "owner", "repo")
+	_, err := c.ListWorkflows(context.Background(), "owner", "repo")
 	if err == nil {
 		t.Error("expected error on 500, got nil")
 	}
@@ -750,15 +669,20 @@ func TestJobsForRunShouldReturnErrorOnServerError(t *testing.T) {
 
 func TestFetchWorkflowsWithJobsShouldReturnRunsWithJobs(t *testing.T) {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/repos/owner/repo/actions/runs", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, http.StatusOK, workflowRunsPageJSON([]map[string]interface{}{
-			workflowRunJSON(1, "CI", ".github/workflows/ci.yml", "main", "alice", "push", "success", "2026-06-15T10:00:00Z", "2026-06-15T10:05:00Z"),
+	mux.HandleFunc("/repos/owner/repo/actions/workflows", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, workflowsPageJSON([]map[string]interface{}{
+			workflowDefJSON(1, "CI", ".github/workflows/ci.yml"),
 		}))
 	})
-	mux.HandleFunc("/repos/owner/repo/actions/runs/1/jobs", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/repos/owner/repo/actions/workflows/1/runs", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, workflowRunsPageJSON([]map[string]interface{}{
+			workflowRunJSON(10, "CI", ".github/workflows/ci.yml", "main", "alice", "push", "success", "2026-06-15T10:00:00Z", "2026-06-15T10:05:00Z"),
+		}))
+	})
+	mux.HandleFunc("/repos/owner/repo/actions/runs/10/jobs", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, jobsPageJSON([]map[string]interface{}{
-			jobJSON(10, "build", "success"),
-			jobJSON(11, "test", "success"),
+			jobJSON(100, "build", "success"),
+			jobJSON(101, "test", "success"),
 		}))
 	})
 	c, _ := newTestClient(t, mux)
@@ -775,23 +699,64 @@ func TestFetchWorkflowsWithJobsShouldReturnRunsWithJobs(t *testing.T) {
 	}
 }
 
-func TestFetchWorkflowsWithJobsShouldContinueWhenJobFetchFails(t *testing.T) {
+func TestFetchWorkflowsWithJobsShouldReturnOneEntryPerWorkflow(t *testing.T) {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/repos/owner/repo/actions/runs", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, http.StatusOK, workflowRunsPageJSON([]map[string]interface{}{
-			workflowRunJSON(1, "CI", ".github/workflows/ci.yml", "main", "alice", "push", "success", "2026-06-15T10:00:00Z", "2026-06-15T10:05:00Z"),
-			workflowRunJSON(2, "CI", ".github/workflows/ci.yml", "main", "bob", "push", "failure", "2026-06-16T10:00:00Z", "2026-06-16T10:05:00Z"),
+	mux.HandleFunc("/repos/owner/repo/actions/workflows", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, workflowsPageJSON([]map[string]interface{}{
+			workflowDefJSON(1, "CI", ".github/workflows/ci.yml"),
+			workflowDefJSON(2, "Release", ".github/workflows/release.yml"),
 		}))
 	})
-	// Run 1 jobs: returns error
+	mux.HandleFunc("/repos/owner/repo/actions/workflows/1/runs", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, workflowRunsPageJSON([]map[string]interface{}{
+			workflowRunJSON(10, "CI", ".github/workflows/ci.yml", "main", "alice", "push", "success", "2026-06-15T10:00:00Z", "2026-06-15T10:05:00Z"),
+		}))
+	})
+	mux.HandleFunc("/repos/owner/repo/actions/workflows/2/runs", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, workflowRunsPageJSON([]map[string]interface{}{
+			workflowRunJSON(20, "Release", ".github/workflows/release.yml", "main", "bob", "push", "success", "2026-06-16T10:00:00Z", "2026-06-16T10:05:00Z"),
+		}))
+	})
+	mux.HandleFunc("/repos/owner/repo/actions/runs/10/jobs", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, jobsPageJSON([]map[string]interface{}{jobJSON(1, "build", "success")}))
+	})
+	mux.HandleFunc("/repos/owner/repo/actions/runs/20/jobs", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, jobsPageJSON([]map[string]interface{}{jobJSON(2, "publish", "success")}))
+	})
+	c, _ := newTestClient(t, mux)
+
+	result, err := c.FetchWorkflowsWithJobs(context.Background(), "owner", "repo")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(result) != 2 {
+		t.Fatalf("expected 1 entry per workflow (2 total), got %d", len(result))
+	}
+}
+
+func TestFetchWorkflowsWithJobsShouldContinueWhenJobFetchFails(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/repos/owner/repo/actions/workflows", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, workflowsPageJSON([]map[string]interface{}{
+			workflowDefJSON(1, "CI", ".github/workflows/ci.yml"),
+			workflowDefJSON(2, "Release", ".github/workflows/release.yml"),
+		}))
+	})
+	mux.HandleFunc("/repos/owner/repo/actions/workflows/1/runs", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, workflowRunsPageJSON([]map[string]interface{}{
+			workflowRunJSON(1, "CI", ".github/workflows/ci.yml", "main", "alice", "push", "success", "2026-06-15T10:00:00Z", "2026-06-15T10:05:00Z"),
+		}))
+	})
+	mux.HandleFunc("/repos/owner/repo/actions/workflows/2/runs", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, workflowRunsPageJSON([]map[string]interface{}{
+			workflowRunJSON(2, "Release", ".github/workflows/release.yml", "main", "bob", "push", "failure", "2026-06-16T10:00:00Z", "2026-06-16T10:05:00Z"),
+		}))
+	})
 	mux.HandleFunc("/repos/owner/repo/actions/runs/1/jobs", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"message": "Internal Server Error"})
 	})
-	// Run 2 jobs: returns successfully
 	mux.HandleFunc("/repos/owner/repo/actions/runs/2/jobs", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, http.StatusOK, jobsPageJSON([]map[string]interface{}{
-			jobJSON(20, "build", "failure"),
-		}))
+		writeJSON(w, http.StatusOK, jobsPageJSON([]map[string]interface{}{jobJSON(20, "build", "failure")}))
 	})
 	c, _ := newTestClient(t, mux)
 
@@ -806,7 +771,12 @@ func TestFetchWorkflowsWithJobsShouldContinueWhenJobFetchFails(t *testing.T) {
 
 func TestFetchWorkflowsWithJobsShouldReturnEmptyJobsForFailedRunJobFetch(t *testing.T) {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/repos/owner/repo/actions/runs", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/repos/owner/repo/actions/workflows", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, workflowsPageJSON([]map[string]interface{}{
+			workflowDefJSON(1, "CI", ".github/workflows/ci.yml"),
+		}))
+	})
+	mux.HandleFunc("/repos/owner/repo/actions/workflows/1/runs", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, workflowRunsPageJSON([]map[string]interface{}{
 			workflowRunJSON(1, "CI", ".github/workflows/ci.yml", "main", "alice", "push", "success", "2026-06-15T10:00:00Z", "2026-06-15T10:05:00Z"),
 		}))

@@ -29,6 +29,13 @@ type WorkflowRun struct {
 	UpdatedAt  time.Time
 }
 
+// Workflow represents a GitHub Actions workflow definition file.
+type Workflow struct {
+	ID   int64
+	Name string
+	Path string
+}
+
 // Job represents a single job within a workflow run.
 type Job struct {
 	ID         int64
@@ -164,34 +171,65 @@ func (c *Client) listUserRepos(ctx context.Context, user string) ([]Repository, 
 	return repos, nil
 }
 
-// WorkflowRuns fetches the single most recent workflow run for the given repository.
-// Prometheus manages the time series; the gauge only needs the current state, not history.
-// Fetching more than one run risks setting conclusion gauges for multiple different
-// conclusions of the same (workflow, branch) pair simultaneously, which is ambiguous.
-func (c *Client) WorkflowRuns(ctx context.Context, owner, repo string) ([]WorkflowRun, error) {
-	slog.Info("github: fetching workflow runs", "owner", owner, "repo", repo)
+// ListWorkflows fetches all workflow definitions for the given repository.
+// 403/404 responses are logged and result in an empty list; other errors are returned.
+func (c *Client) ListWorkflows(ctx context.Context, owner, repo string) ([]Workflow, error) {
+	slog.Info("github: listing workflows", "owner", owner, "repo", repo)
+	opts := &gogithub.ListOptions{PerPage: 100}
+	var workflows []Workflow
+	for {
+		page, resp, err := c.gh.Actions.ListWorkflows(ctx, owner, repo, opts)
+		if err != nil {
+			if isAccessError(err) {
+				slog.Warn("github: cannot list workflows", "owner", owner, "repo", repo, "error", err)
+				return nil, nil
+			}
+			return nil, fmt.Errorf("github: list workflows for %s/%s: %w", owner, repo, err)
+		}
+		for _, w := range page.Workflows {
+			workflows = append(workflows, Workflow{
+				ID:   w.GetID(),
+				Name: w.GetName(),
+				Path: w.GetPath(),
+			})
+		}
+		if resp.NextPage == 0 {
+			break
+		}
+		opts.Page = resp.NextPage
+	}
+	if workflows == nil {
+		workflows = []Workflow{}
+	}
+	return workflows, nil
+}
+
+// latestRunByWorkflowID fetches the single most recent run for a specific workflow.
+// Returns nil, nil when the workflow has no runs yet.
+func (c *Client) latestRunByWorkflowID(ctx context.Context, owner, repo string, workflowID int64) (*WorkflowRun, error) {
+	slog.Info("github: fetching latest run for workflow", "owner", owner, "repo", repo, "workflow_id", workflowID)
 	opts := &gogithub.ListWorkflowRunsOptions{
 		ListOptions: gogithub.ListOptions{PerPage: 1},
 	}
-	page, _, err := c.gh.Actions.ListRepositoryWorkflowRuns(ctx, owner, repo, opts)
+	page, _, err := c.gh.Actions.ListWorkflowRunsByID(ctx, owner, repo, workflowID, opts)
 	if err != nil {
-		return nil, fmt.Errorf("github: list workflow runs for %s/%s: %w", owner, repo, err)
+		return nil, fmt.Errorf("github: list runs for workflow %d in %s/%s: %w", workflowID, owner, repo, err)
 	}
-	runs := make([]WorkflowRun, 0, len(page.WorkflowRuns))
-	for _, r := range page.WorkflowRuns {
-		runs = append(runs, WorkflowRun{
-			ID:         r.GetID(),
-			Name:       r.GetName(),
-			Path:       r.GetPath(),
-			HeadBranch: r.GetHeadBranch(),
-			Actor:      r.GetActor().GetLogin(),
-			Event:      r.GetEvent(),
-			Conclusion: r.GetConclusion(),
-			CreatedAt:  r.GetCreatedAt().Time,
-			UpdatedAt:  r.GetUpdatedAt().Time,
-		})
+	if len(page.WorkflowRuns) == 0 {
+		return nil, nil
 	}
-	return runs, nil
+	r := page.WorkflowRuns[0]
+	return &WorkflowRun{
+		ID:         r.GetID(),
+		Name:       r.GetName(),
+		Path:       r.GetPath(),
+		HeadBranch: r.GetHeadBranch(),
+		Actor:      r.GetActor().GetLogin(),
+		Event:      r.GetEvent(),
+		Conclusion: r.GetConclusion(),
+		CreatedAt:  r.GetCreatedAt().Time,
+		UpdatedAt:  r.GetUpdatedAt().Time,
+	}, nil
 }
 
 // JobsForRun fetches all jobs for a single workflow run.
@@ -226,24 +264,34 @@ func (c *Client) JobsForRun(ctx context.Context, owner, repo string, runID int64
 	return jobs, nil
 }
 
-// FetchWorkflowsWithJobs fetches the most recent workflow runs and their jobs for the given repository.
-// If fetching jobs for an individual run fails, the error is logged and that run is
-// included with an empty job list; fetching continues for the remaining runs.
+// FetchWorkflowsWithJobs returns the latest run and its jobs for every workflow file in the
+// repository. Each workflow file is queried independently so that all pipelines appear in the
+// result regardless of which one ran most recently.
+// Per-workflow run fetch failures are logged and that workflow is skipped.
+// Per-run job fetch failures are logged and the run is included with an empty job list.
 func (c *Client) FetchWorkflowsWithJobs(ctx context.Context, owner, repo string) ([]RunWithJobs, error) {
-	runs, err := c.WorkflowRuns(ctx, owner, repo)
+	workflows, err := c.ListWorkflows(ctx, owner, repo)
 	if err != nil {
 		return nil, err
 	}
 
-	result := make([]RunWithJobs, 0, len(runs))
-	for _, run := range runs {
+	result := make([]RunWithJobs, 0, len(workflows))
+	for _, wf := range workflows {
+		run, err := c.latestRunByWorkflowID(ctx, owner, repo, wf.ID)
+		if err != nil {
+			slog.Warn("github: run fetch failed for workflow; skipping", "owner", owner, "repo", repo, "workflow_id", wf.ID, "error", err)
+			continue
+		}
+		if run == nil {
+			continue
+		}
 		jobs, err := c.JobsForRun(ctx, owner, repo, run.ID)
 		if err != nil {
 			slog.Warn("github: job fetch failed; run included with empty job list", "owner", owner, "repo", repo, "run_id", run.ID, "error", err)
-			result = append(result, RunWithJobs{Run: run, Jobs: []Job{}})
+			result = append(result, RunWithJobs{Run: *run, Jobs: []Job{}})
 			continue
 		}
-		result = append(result, RunWithJobs{Run: run, Jobs: jobs})
+		result = append(result, RunWithJobs{Run: *run, Jobs: jobs})
 	}
 	return result, nil
 }
