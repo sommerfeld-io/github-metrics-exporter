@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -16,6 +18,7 @@ type workflowScenarioState struct {
 	mux                   *http.ServeMux
 	mockSrv               *httptest.Server
 	client                *github.Client
+	originalLogger        *slog.Logger
 	receivedCreatedFilter string
 	runsResult            []github.WorkflowRun
 	jobsResult            []github.Job
@@ -181,6 +184,8 @@ func InitializeWorkflowScenario(ctx *godog.ScenarioContext) {
 	s := &workflowScenarioState{}
 
 	ctx.Before(func(goCtx context.Context, sc *godog.Scenario) (context.Context, error) {
+		s.originalLogger = slog.Default()
+		slog.SetDefault(slog.New(slog.NewTextHandler(io.Discard, nil)))
 		s.mux = http.NewServeMux()
 		s.mockSrv = httptest.NewServer(s.mux)
 		s.client = github.NewWithToken("test-token")
@@ -198,6 +203,7 @@ func InitializeWorkflowScenario(ctx *godog.ScenarioContext) {
 	})
 
 	ctx.After(func(goCtx context.Context, sc *godog.Scenario, err error) (context.Context, error) {
+		slog.SetDefault(s.originalLogger)
 		if s.mockSrv != nil {
 			s.mockSrv.Close()
 		}

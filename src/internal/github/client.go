@@ -232,7 +232,7 @@ func (c *Client) FetchWorkflowsWithJobs(ctx context.Context, owner, repo string)
 	for _, run := range runs {
 		jobs, err := c.JobsForRun(ctx, owner, repo, run.ID)
 		if err != nil {
-			slog.Warn("github: failed to fetch jobs for run", "owner", owner, "repo", repo, "run_id", run.ID, "error", err)
+			slog.Warn("github: job fetch failed; run included with empty job list", "owner", owner, "repo", repo, "run_id", run.ID, "error", err)
 			result = append(result, RunWithJobs{Run: run, Jobs: []Job{}})
 			continue
 		}
