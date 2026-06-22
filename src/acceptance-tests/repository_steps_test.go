@@ -105,6 +105,38 @@ func (s *repositoryState) thePageShouldDisplayNoTargetsWarning() error {
 	return nil
 }
 
+func (s *repositoryState) theMetricsBodyContainsWorkflowRunConclusion(conclusion, owner, repo string) error {
+	ownerLabel := fmt.Sprintf(`owner="%s"`, owner)
+	repoLabel := fmt.Sprintf(`repo="%s"`, repo)
+	conclusionLabel := fmt.Sprintf(`conclusion="%s"`, conclusion)
+	for _, line := range strings.Split(s.body, "\n") {
+		if strings.Contains(line, "workflow_run_conclusion") &&
+			strings.Contains(line, ownerLabel) &&
+			strings.Contains(line, repoLabel) &&
+			strings.Contains(line, conclusionLabel) &&
+			strings.HasSuffix(strings.TrimSpace(line), " 1") {
+			return nil
+		}
+	}
+	return fmt.Errorf("ghme_workflow_run_conclusion{owner=%q,repo=%q,conclusion=%q} not found in /metrics", owner, repo, conclusion)
+}
+
+func (s *repositoryState) theMetricsBodyContainsWorkflowJobConclusion(conclusion, owner, repo string) error {
+	ownerLabel := fmt.Sprintf(`owner="%s"`, owner)
+	repoLabel := fmt.Sprintf(`repo="%s"`, repo)
+	conclusionLabel := fmt.Sprintf(`conclusion="%s"`, conclusion)
+	for _, line := range strings.Split(s.body, "\n") {
+		if strings.Contains(line, "workflow_job_conclusion") &&
+			strings.Contains(line, ownerLabel) &&
+			strings.Contains(line, repoLabel) &&
+			strings.Contains(line, conclusionLabel) &&
+			strings.HasSuffix(strings.TrimSpace(line), " 1") {
+			return nil
+		}
+	}
+	return fmt.Errorf("ghme_workflow_job_conclusion{owner=%q,repo=%q,conclusion=%q} not found in /metrics", owner, repo, conclusion)
+}
+
 // InitializeRepositoryScenario registers all repository-related step definitions with GoDog.
 func InitializeRepositoryScenario(ctx *godog.ScenarioContext) {
 	s := &repositoryState{}
@@ -114,6 +146,8 @@ func InitializeRepositoryScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^a user requests the metrics endpoint$`, s.aUserRequestsTheMetricsEndpoint)
 	ctx.Step(`^a user navigates to "([^"]*)"$`, s.aUserNavigatesTo)
 	ctx.Step(`^the metrics body contains a repository accessible metric with value (\d+) for "([^"]*)" and "([^"]*)"$`, s.theMetricsBodyContainsRepositoryAccessibleWithValue)
+	ctx.Step(`^the metrics body contains workflow run conclusion "([^"]*)" for "([^"]*)" and "([^"]*)"$`, s.theMetricsBodyContainsWorkflowRunConclusion)
+	ctx.Step(`^the metrics body contains workflow job conclusion "([^"]*)" for "([^"]*)" and "([^"]*)"$`, s.theMetricsBodyContainsWorkflowJobConclusion)
 	ctx.Step(`^the page should contain the owner heading "([^"]*)"$`, s.thePageShouldContainOwnerHeading)
 	ctx.Step(`^the page should list repository "([^"]*)"$`, s.thePageShouldListRepository)
 	ctx.Step(`^the page should show an? "([^"]*)" badge for "([^"]*)"$`, s.thePageShouldShowBadgeFor)

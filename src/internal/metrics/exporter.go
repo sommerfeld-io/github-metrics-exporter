@@ -6,6 +6,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sommerfeld-io/github-metrics-exporter/internal/metrics/meta"
 	"github.com/sommerfeld-io/github-metrics-exporter/internal/metrics/repository"
+	"github.com/sommerfeld-io/github-metrics-exporter/internal/metrics/workflow"
 )
 
 // Register registers all core exporter metrics with the given registry and
@@ -21,5 +22,10 @@ func Register(reg prometheus.Registerer) error {
 		return fmt.Errorf("metrics.Register: %w", err)
 	}
 	reg.MustRegister(repository.Accessible)
+
+	if err := workflow.Init(MetricPrefix); err != nil {
+		return fmt.Errorf("metrics.Register: %w", err)
+	}
+	reg.MustRegister(workflow.RunConclusion, workflow.JobConclusion)
 	return nil
 }

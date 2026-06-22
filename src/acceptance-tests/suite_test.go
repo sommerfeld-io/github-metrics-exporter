@@ -17,8 +17,10 @@ import (
 	"github.com/cucumber/godog"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sommerfeld-io/github-metrics-exporter/internal/config"
+	"github.com/sommerfeld-io/github-metrics-exporter/internal/github"
 	"github.com/sommerfeld-io/github-metrics-exporter/internal/metrics"
 	"github.com/sommerfeld-io/github-metrics-exporter/internal/metrics/repository"
+	"github.com/sommerfeld-io/github-metrics-exporter/internal/metrics/workflow"
 	"github.com/sommerfeld-io/github-metrics-exporter/internal/server"
 )
 
@@ -65,6 +67,21 @@ func TestMain(m *testing.M) {
 			slog.Error("setup: seed repository metric", "error", err)
 			os.Exit(1)
 		}
+	}
+
+	// Seed workflow metrics so run/job conclusion metrics appear on /metrics.
+	if err := workflow.Record("test-org", "repo-accessible", []github.RunWithJobs{
+		{
+			Run:  github.WorkflowRun{Name: "CI", HeadBranch: "main", Conclusion: "success"},
+			Jobs: []github.Job{{Name: "build", Conclusion: "success"}},
+		},
+		{
+			Run:  github.WorkflowRun{Name: "CI", HeadBranch: "main", Conclusion: "failure"},
+			Jobs: []github.Job{{Name: "build", Conclusion: "failure"}},
+		},
+	}); err != nil {
+		slog.Error("setup: seed workflow metrics", "error", err)
+		os.Exit(1)
 	}
 
 	cfgPath := writeTempConfig(9400)

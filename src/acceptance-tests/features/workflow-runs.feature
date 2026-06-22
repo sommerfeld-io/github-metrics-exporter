@@ -21,3 +21,18 @@ Feature: Workflow run and job data retrieval
     And both runs are present in the result
     And the run with the job error has an empty job list
     And scraping continues and the second run has its jobs
+
+  Scenario Outline: Workflow run conclusion appears as a metric on the metrics endpoint
+    Given the exporter has repositories configured
+    When a user requests the metrics endpoint
+    Then the metrics body contains workflow run conclusion "<conclusion>" for "test-org" and "repo-accessible"
+
+    Examples:
+      | conclusion |
+      | success    |
+      | failure    |
+
+  Scenario: Workflow job conclusion appears as a metric on the metrics endpoint
+    Given the exporter has repositories configured
+    When a user requests the metrics endpoint
+    Then the metrics body contains workflow job conclusion "success" for "test-org" and "repo-accessible"

@@ -34,6 +34,10 @@ func noopDiscover(_ context.Context, _, _ []string) ([]github.Repository, error)
 	return nil, nil
 }
 
+func noopFetchWorkflows(_ context.Context, _, _ string) ([]github.RunWithJobs, error) {
+	return nil, nil
+}
+
 func setValidGitHubToken(t *testing.T) {
 	t.Helper()
 	t.Setenv("GITHUB_TOKEN", "test-token-for-unit-tests")
@@ -41,7 +45,7 @@ func setValidGitHubToken(t *testing.T) {
 
 func TestRunShouldReturnErrorWhenGITHUBTOKENIsMissing(t *testing.T) {
 	t.Setenv("GITHUB_TOKEN", "")
-	err := run("", prometheus.NewRegistry(), noopDiscover, noopListen)
+	err := run("", prometheus.NewRegistry(), noopDiscover, noopFetchWorkflows, noopListen)
 	if err == nil {
 		t.Error("expected error when GITHUB_TOKEN is missing, got nil")
 	}
@@ -49,7 +53,7 @@ func TestRunShouldReturnErrorWhenGITHUBTOKENIsMissing(t *testing.T) {
 
 func TestRunShouldNotReturnNilWhenGITHUBTOKENIsMissing(t *testing.T) {
 	t.Setenv("GITHUB_TOKEN", "")
-	err := run("", prometheus.NewRegistry(), noopDiscover, noopListen)
+	err := run("", prometheus.NewRegistry(), noopDiscover, noopFetchWorkflows, noopListen)
 	if err == nil {
 		t.Error("error must not be nil when GITHUB_TOKEN is missing")
 	}
@@ -58,7 +62,7 @@ func TestRunShouldNotReturnNilWhenGITHUBTOKENIsMissing(t *testing.T) {
 func TestRunShouldReturnErrorWhenGITHUBTOKENIsEmptyString(t *testing.T) {
 	t.Setenv("GITHUB_TOKEN", "")
 	path := writeConfig(t, "port: 9400\n")
-	err := run(path, prometheus.NewRegistry(), noopDiscover, noopListen)
+	err := run(path, prometheus.NewRegistry(), noopDiscover, noopFetchWorkflows, noopListen)
 	if err == nil {
 		t.Error("expected error when GITHUB_TOKEN is an empty string, got nil")
 	}
@@ -66,7 +70,7 @@ func TestRunShouldReturnErrorWhenGITHUBTOKENIsEmptyString(t *testing.T) {
 
 func TestRunShouldReturnErrorMessageMentioningGITHUBTOKEN(t *testing.T) {
 	t.Setenv("GITHUB_TOKEN", "")
-	err := run("", prometheus.NewRegistry(), noopDiscover, noopListen)
+	err := run("", prometheus.NewRegistry(), noopDiscover, noopFetchWorkflows, noopListen)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -77,7 +81,7 @@ func TestRunShouldReturnErrorMessageMentioningGITHUBTOKEN(t *testing.T) {
 
 func TestRunShouldReturnErrorWhenConfigPathIsEmpty(t *testing.T) {
 	setValidGitHubToken(t)
-	err := run("", prometheus.NewRegistry(), noopDiscover, noopListen)
+	err := run("", prometheus.NewRegistry(), noopDiscover, noopFetchWorkflows, noopListen)
 	if err == nil {
 		t.Error("expected error when config path is empty, got nil")
 	}
@@ -85,7 +89,7 @@ func TestRunShouldReturnErrorWhenConfigPathIsEmpty(t *testing.T) {
 
 func TestRunShouldNotReturnNilWhenConfigPathIsEmpty(t *testing.T) {
 	setValidGitHubToken(t)
-	err := run("", prometheus.NewRegistry(), noopDiscover, noopListen)
+	err := run("", prometheus.NewRegistry(), noopDiscover, noopFetchWorkflows, noopListen)
 	if err == nil {
 		t.Error("error must not be nil when config path is empty")
 	}
@@ -93,7 +97,7 @@ func TestRunShouldNotReturnNilWhenConfigPathIsEmpty(t *testing.T) {
 
 func TestRunShouldReturnErrorMessageMentioningConfigFlag(t *testing.T) {
 	setValidGitHubToken(t)
-	err := run("", prometheus.NewRegistry(), noopDiscover, noopListen)
+	err := run("", prometheus.NewRegistry(), noopDiscover, noopFetchWorkflows, noopListen)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -104,7 +108,7 @@ func TestRunShouldReturnErrorMessageMentioningConfigFlag(t *testing.T) {
 
 func TestRunShouldReturnErrorWhenConfigFileDoesNotExist(t *testing.T) {
 	setValidGitHubToken(t)
-	err := run("/nonexistent/path/config.yml", prometheus.NewRegistry(), noopDiscover, noopListen)
+	err := run("/nonexistent/path/config.yml", prometheus.NewRegistry(), noopDiscover, noopFetchWorkflows, noopListen)
 	if err == nil {
 		t.Error("expected error when config file does not exist, got nil")
 	}
@@ -112,7 +116,7 @@ func TestRunShouldReturnErrorWhenConfigFileDoesNotExist(t *testing.T) {
 
 func TestRunShouldWrapConfigLoadError(t *testing.T) {
 	setValidGitHubToken(t)
-	err := run("/nonexistent/path/config.yml", prometheus.NewRegistry(), noopDiscover, noopListen)
+	err := run("/nonexistent/path/config.yml", prometheus.NewRegistry(), noopDiscover, noopFetchWorkflows, noopListen)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -128,7 +132,7 @@ func TestRunShouldReturnErrorWhenMetricsRegistrationFails(t *testing.T) {
 	t.Cleanup(func() { metrics.MetricPrefix = original })
 
 	path := writeConfig(t, "port: 9400\n")
-	err := run(path, prometheus.NewRegistry(), noopDiscover, noopListen)
+	err := run(path, prometheus.NewRegistry(), noopDiscover, noopFetchWorkflows, noopListen)
 	if err == nil {
 		t.Error("expected error when metrics registration fails, got nil")
 	}
@@ -141,7 +145,7 @@ func TestRunShouldWrapMetricsRegistrationError(t *testing.T) {
 	t.Cleanup(func() { metrics.MetricPrefix = original })
 
 	path := writeConfig(t, "port: 9400\n")
-	err := run(path, prometheus.NewRegistry(), noopDiscover, noopListen)
+	err := run(path, prometheus.NewRegistry(), noopDiscover, noopFetchWorkflows, noopListen)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -153,7 +157,7 @@ func TestRunShouldWrapMetricsRegistrationError(t *testing.T) {
 func TestRunShouldSucceedWithValidConfigAndNoopListen(t *testing.T) {
 	setValidGitHubToken(t)
 	path := writeConfig(t, "port: 9400\n")
-	err := run(path, prometheus.NewRegistry(), noopDiscover, noopListen)
+	err := run(path, prometheus.NewRegistry(), noopDiscover, noopFetchWorkflows, noopListen)
 	if err != nil {
 		t.Errorf("expected no error with valid config and noop listen, got %v", err)
 	}
@@ -162,7 +166,7 @@ func TestRunShouldSucceedWithValidConfigAndNoopListen(t *testing.T) {
 func TestRunShouldNotReturnErrorOnSuccess(t *testing.T) {
 	setValidGitHubToken(t)
 	path := writeConfig(t, "port: 9400\n")
-	err := run(path, prometheus.NewRegistry(), noopDiscover, noopListen)
+	err := run(path, prometheus.NewRegistry(), noopDiscover, noopFetchWorkflows, noopListen)
 	if err != nil {
 		t.Errorf("error must be nil on success, got %v", err)
 	}
@@ -177,7 +181,7 @@ func TestRunShouldCallListenOnConfiguredPort(t *testing.T) {
 	}
 
 	path := writeConfig(t, "port: 9400\n")
-	if err := run(path, prometheus.NewRegistry(), noopDiscover, stub); err != nil {
+	if err := run(path, prometheus.NewRegistry(), noopDiscover, noopFetchWorkflows, stub); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -195,7 +199,7 @@ func TestRunShouldNotListenOnWrongPort(t *testing.T) {
 	}
 
 	path := writeConfig(t, "port: 9400\n")
-	if err := run(path, prometheus.NewRegistry(), noopDiscover, stub); err != nil {
+	if err := run(path, prometheus.NewRegistry(), noopDiscover, noopFetchWorkflows, stub); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -212,7 +216,7 @@ func TestRunShouldPropagateListenError(t *testing.T) {
 	}
 
 	path := writeConfig(t, "port: 9400\n")
-	err := run(path, prometheus.NewRegistry(), noopDiscover, stub)
+	err := run(path, prometheus.NewRegistry(), noopDiscover, noopFetchWorkflows, stub)
 	if !errors.Is(err, sentinel) {
 		t.Errorf("expected sentinel listen error to be propagated, got %v", err)
 	}
@@ -225,7 +229,7 @@ func TestRunShouldNotSwallowListenError(t *testing.T) {
 	}
 
 	path := writeConfig(t, "port: 9400\n")
-	err := run(path, prometheus.NewRegistry(), noopDiscover, stub)
+	err := run(path, prometheus.NewRegistry(), noopDiscover, noopFetchWorkflows, stub)
 	if err == nil {
 		t.Error("run must not return nil when the listen function errors")
 	}
@@ -237,7 +241,7 @@ func TestRunShouldReturnErrorWhenDiscoverFails(t *testing.T) {
 		return nil, fmt.Errorf("discovery failed")
 	}
 	path := writeConfig(t, "port: 9400\n")
-	err := run(path, prometheus.NewRegistry(), failDiscover, noopListen)
+	err := run(path, prometheus.NewRegistry(), failDiscover, noopFetchWorkflows, noopListen)
 	if err == nil {
 		t.Error("expected error when discover fails, got nil")
 	}
@@ -249,7 +253,7 @@ func TestRunShouldWrapDiscoverError(t *testing.T) {
 		return nil, fmt.Errorf("discovery failed")
 	}
 	path := writeConfig(t, "port: 9400\n")
-	err := run(path, prometheus.NewRegistry(), failDiscover, noopListen)
+	err := run(path, prometheus.NewRegistry(), failDiscover, noopFetchWorkflows, noopListen)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -264,8 +268,38 @@ func TestRunShouldNotReturnErrorWhenDiscoverReturnsEmptyList(t *testing.T) {
 		return []github.Repository{}, nil
 	}
 	path := writeConfig(t, "port: 9400\n")
-	err := run(path, prometheus.NewRegistry(), emptyDiscover, noopListen)
+	err := run(path, prometheus.NewRegistry(), emptyDiscover, noopFetchWorkflows, noopListen)
 	if err != nil {
 		t.Errorf("expected no error when discover returns empty list, got %v", err)
+	}
+}
+
+func TestRunShouldSucceedWhenWorkflowFetchFails(t *testing.T) {
+	setValidGitHubToken(t)
+	accessibleDiscover := func(_ context.Context, _, _ []string) ([]github.Repository, error) {
+		return []github.Repository{{Owner: "org", Name: "repo", Accessible: true}}, nil
+	}
+	failFetch := func(_ context.Context, _, _ string) ([]github.RunWithJobs, error) {
+		return nil, fmt.Errorf("github API error")
+	}
+	path := writeConfig(t, "port: 9400\n")
+	err := run(path, prometheus.NewRegistry(), accessibleDiscover, failFetch, noopListen)
+	if err != nil {
+		t.Errorf("expected no error when workflow fetch fails (warn-and-continue), got %v", err)
+	}
+}
+
+func TestRunShouldNotReturnErrorWhenWorkflowFetchReturnsEmpty(t *testing.T) {
+	setValidGitHubToken(t)
+	accessibleDiscover := func(_ context.Context, _, _ []string) ([]github.Repository, error) {
+		return []github.Repository{{Owner: "org", Name: "repo", Accessible: true}}, nil
+	}
+	emptyFetch := func(_ context.Context, _, _ string) ([]github.RunWithJobs, error) {
+		return []github.RunWithJobs{}, nil
+	}
+	path := writeConfig(t, "port: 9400\n")
+	err := run(path, prometheus.NewRegistry(), accessibleDiscover, emptyFetch, noopListen)
+	if err != nil {
+		t.Errorf("expected no error when workflow fetch returns empty list, got %v", err)
 	}
 }
