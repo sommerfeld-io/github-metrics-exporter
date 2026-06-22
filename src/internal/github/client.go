@@ -163,13 +163,14 @@ func (c *Client) listUserRepos(ctx context.Context, user string) ([]Repository, 
 	return repos, nil
 }
 
-// WorkflowRuns fetches the most recent workflow runs for the given repository.
-// It fetches a single page of results with no date filter, exposing current state
-// as required by the Prometheus exporter model. Prometheus manages the time series.
+// WorkflowRuns fetches the single most recent workflow run for the given repository.
+// Prometheus manages the time series; the gauge only needs the current state, not history.
+// Fetching more than one run risks setting conclusion gauges for multiple different
+// conclusions of the same (workflow, branch) pair simultaneously, which is ambiguous.
 func (c *Client) WorkflowRuns(ctx context.Context, owner, repo string) ([]WorkflowRun, error) {
 	slog.Info("github: fetching workflow runs", "owner", owner, "repo", repo)
 	opts := &gogithub.ListWorkflowRunsOptions{
-		ListOptions: gogithub.ListOptions{PerPage: 5},
+		ListOptions: gogithub.ListOptions{PerPage: 1},
 	}
 	page, _, err := c.gh.Actions.ListRepositoryWorkflowRuns(ctx, owner, repo, opts)
 	if err != nil {
