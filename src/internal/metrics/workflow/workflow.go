@@ -9,12 +9,12 @@ import (
 )
 
 // RunConclusion tracks workflow run conclusions from the most recent API page.
-// Label dimensions: owner, repo, workflow, branch, conclusion. Value: always 1.
+// Label dimensions: owner, repo, workflow, path, branch, conclusion. Value: always 1.
 // It is initialized by calling Init.
 var RunConclusion *prometheus.GaugeVec
 
 // JobConclusion tracks workflow job conclusions from the most recent API page.
-// Label dimensions: owner, repo, workflow, branch, job, conclusion. Value: always 1.
+// Label dimensions: owner, repo, workflow, path, branch, job, conclusion. Value: always 1.
 // It is initialized by calling Init.
 var JobConclusion *prometheus.GaugeVec
 
@@ -32,14 +32,14 @@ func Init(prefix string) error {
 			Name: prefix + "workflow_run_conclusion",
 			Help: "1 if a workflow run with the given conclusion appears in the most recent API page.",
 		},
-		[]string{"owner", "repo", "workflow", "branch", "conclusion"},
+		[]string{"owner", "repo", "workflow", "path", "branch", "conclusion"},
 	)
 	JobConclusion = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: prefix + "workflow_job_conclusion",
 			Help: "1 if a workflow job with the given conclusion appears in the most recent API page.",
 		},
-		[]string{"owner", "repo", "workflow", "branch", "job", "conclusion"},
+		[]string{"owner", "repo", "workflow", "path", "branch", "job", "conclusion"},
 	)
 	return nil
 }
@@ -52,9 +52,9 @@ func Record(owner, repo string, runs []github.RunWithJobs) error {
 		return ErrNotInitialized
 	}
 	for _, r := range runs {
-		RunConclusion.WithLabelValues(owner, repo, r.Run.Name, r.Run.HeadBranch, r.Run.Conclusion).Set(1)
+		RunConclusion.WithLabelValues(owner, repo, r.Run.Name, r.Run.Path, r.Run.HeadBranch, r.Run.Conclusion).Set(1)
 		for _, j := range r.Jobs {
-			JobConclusion.WithLabelValues(owner, repo, r.Run.Name, r.Run.HeadBranch, j.Name, j.Conclusion).Set(1)
+			JobConclusion.WithLabelValues(owner, repo, r.Run.Name, r.Run.Path, r.Run.HeadBranch, j.Name, j.Conclusion).Set(1)
 		}
 	}
 	return nil

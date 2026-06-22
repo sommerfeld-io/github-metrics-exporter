@@ -68,11 +68,11 @@ func testCollect(_ context.Context) ([]server.Repository, error) {
 	workflow.JobConclusion.Reset()
 	if err := workflow.Record("test-org", "repo-accessible", []github.RunWithJobs{
 		{
-			Run:  github.WorkflowRun{Name: "CI", HeadBranch: "main", Conclusion: "success"},
+			Run:  github.WorkflowRun{Name: "CI", Path: ".github/workflows/ci.yml", HeadBranch: "main", Conclusion: "success"},
 			Jobs: []github.Job{{Name: "build", Conclusion: "success"}},
 		},
 		{
-			Run:  github.WorkflowRun{Name: "CI", HeadBranch: "main", Conclusion: "failure"},
+			Run:  github.WorkflowRun{Name: "CI", Path: ".github/workflows/ci.yml", HeadBranch: "main", Conclusion: "failure"},
 			Jobs: []github.Job{{Name: "build", Conclusion: "failure"}},
 		},
 	}); err != nil {

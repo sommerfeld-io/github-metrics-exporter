@@ -20,6 +20,7 @@ import (
 type WorkflowRun struct {
 	ID         int64
 	Name       string
+	Path       string
 	HeadBranch string
 	Actor      string
 	Event      string
@@ -181,6 +182,7 @@ func (c *Client) WorkflowRuns(ctx context.Context, owner, repo string) ([]Workfl
 		runs = append(runs, WorkflowRun{
 			ID:         r.GetID(),
 			Name:       r.GetName(),
+			Path:       r.GetPath(),
 			HeadBranch: r.GetHeadBranch(),
 			Actor:      r.GetActor().GetLogin(),
 			Event:      r.GetEvent(),

@@ -90,12 +90,12 @@ func TestRecordShouldSetRunConclusionGaugeToOne(t *testing.T) {
 		t.Fatalf("unexpected Init error: %v", err)
 	}
 	runs := []github.RunWithJobs{
-		{Run: github.WorkflowRun{Name: "CI", HeadBranch: "main", Conclusion: "success"}},
+		{Run: github.WorkflowRun{Name: "CI", Path: ".github/workflows/ci.yml", HeadBranch: "main", Conclusion: "success"}},
 	}
 	if err := Record("owner", "repo", runs); err != nil {
 		t.Fatalf("unexpected Record error: %v", err)
 	}
-	val := gaugeValue(t, RunConclusion, "owner", "repo", "CI", "main", "success")
+	val := gaugeValue(t, RunConclusion, "owner", "repo", "CI", ".github/workflows/ci.yml", "main", "success")
 	if val != 1 {
 		t.Errorf("expected RunConclusion gauge to be 1, got %v", val)
 	}
@@ -107,12 +107,12 @@ func TestRecordShouldNotLeaveRunConclusionGaugeAtZero(t *testing.T) {
 		t.Fatalf("unexpected Init error: %v", err)
 	}
 	runs := []github.RunWithJobs{
-		{Run: github.WorkflowRun{Name: "CI", HeadBranch: "main", Conclusion: "success"}},
+		{Run: github.WorkflowRun{Name: "CI", Path: ".github/workflows/ci.yml", HeadBranch: "main", Conclusion: "success"}},
 	}
 	if err := Record("owner", "repo", runs); err != nil {
 		t.Fatalf("unexpected Record error: %v", err)
 	}
-	val := gaugeValue(t, RunConclusion, "owner", "repo", "CI", "main", "success")
+	val := gaugeValue(t, RunConclusion, "owner", "repo", "CI", ".github/workflows/ci.yml", "main", "success")
 	if val == 0 {
 		t.Error("RunConclusion gauge must not be 0 after Record (zero means the value was never set)")
 	}
@@ -125,14 +125,14 @@ func TestRecordShouldSetJobConclusionGaugeToOne(t *testing.T) {
 	}
 	runs := []github.RunWithJobs{
 		{
-			Run:  github.WorkflowRun{Name: "CI", HeadBranch: "main", Conclusion: "success"},
+			Run:  github.WorkflowRun{Name: "CI", Path: ".github/workflows/ci.yml", HeadBranch: "main", Conclusion: "success"},
 			Jobs: []github.Job{{Name: "build", Conclusion: "success"}},
 		},
 	}
 	if err := Record("owner", "repo", runs); err != nil {
 		t.Fatalf("unexpected Record error: %v", err)
 	}
-	val := gaugeValue(t, JobConclusion, "owner", "repo", "CI", "main", "build", "success")
+	val := gaugeValue(t, JobConclusion, "owner", "repo", "CI", ".github/workflows/ci.yml", "main", "build", "success")
 	if val != 1 {
 		t.Errorf("expected JobConclusion gauge to be 1, got %v", val)
 	}
@@ -145,14 +145,14 @@ func TestRecordShouldNotLeaveJobConclusionGaugeAtZero(t *testing.T) {
 	}
 	runs := []github.RunWithJobs{
 		{
-			Run:  github.WorkflowRun{Name: "CI", HeadBranch: "main", Conclusion: "success"},
+			Run:  github.WorkflowRun{Name: "CI", Path: ".github/workflows/ci.yml", HeadBranch: "main", Conclusion: "success"},
 			Jobs: []github.Job{{Name: "build", Conclusion: "success"}},
 		},
 	}
 	if err := Record("owner", "repo", runs); err != nil {
 		t.Fatalf("unexpected Record error: %v", err)
 	}
-	val := gaugeValue(t, JobConclusion, "owner", "repo", "CI", "main", "build", "success")
+	val := gaugeValue(t, JobConclusion, "owner", "repo", "CI", ".github/workflows/ci.yml", "main", "build", "success")
 	if val == 0 {
 		t.Error("JobConclusion gauge must not be 0 after Record (zero means the value was never set)")
 	}
@@ -181,5 +181,42 @@ func TestRecordShouldNotReturnErrorForEmptyRunList(t *testing.T) {
 	}
 	if err := Record("owner", "repo", []github.RunWithJobs{}); err != nil {
 		t.Errorf("expected no error for empty run list, got %v", err)
+	}
+}
+
+func TestRecordShouldIncludePathInRunConclusionLabel(t *testing.T) {
+	t.Cleanup(resetGlobals)
+	if err := Init("ghme_"); err != nil {
+		t.Fatalf("unexpected Init error: %v", err)
+	}
+	runs := []github.RunWithJobs{
+		{Run: github.WorkflowRun{Name: "CI", Path: ".github/workflows/ci.yml", HeadBranch: "main", Conclusion: "success"}},
+	}
+	if err := Record("owner", "repo", runs); err != nil {
+		t.Fatalf("unexpected Record error: %v", err)
+	}
+	val := gaugeValue(t, RunConclusion, "owner", "repo", "CI", ".github/workflows/ci.yml", "main", "success")
+	if val != 1 {
+		t.Errorf("expected RunConclusion gauge to be 1 with path label, got %v", val)
+	}
+}
+
+func TestRecordShouldIncludePathInJobConclusionLabel(t *testing.T) {
+	t.Cleanup(resetGlobals)
+	if err := Init("ghme_"); err != nil {
+		t.Fatalf("unexpected Init error: %v", err)
+	}
+	runs := []github.RunWithJobs{
+		{
+			Run:  github.WorkflowRun{Name: "CI", Path: ".github/workflows/ci.yml", HeadBranch: "main", Conclusion: "success"},
+			Jobs: []github.Job{{Name: "build", Conclusion: "success"}},
+		},
+	}
+	if err := Record("owner", "repo", runs); err != nil {
+		t.Fatalf("unexpected Record error: %v", err)
+	}
+	val := gaugeValue(t, JobConclusion, "owner", "repo", "CI", ".github/workflows/ci.yml", "main", "build", "success")
+	if val != 1 {
+		t.Errorf("expected JobConclusion gauge to be 1 with path label, got %v", val)
 	}
 }
