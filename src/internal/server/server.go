@@ -24,10 +24,11 @@ type CollectFunc func(ctx context.Context) ([]Repository, error)
 
 // srv holds per-server state shared between the metrics and index handlers.
 type srv struct {
-	port      int
-	collect   CollectFunc
-	mu        sync.RWMutex
-	lastRepos []Repository
+	port        int
+	collect     CollectFunc
+	mu          sync.RWMutex
+	lastRepos   []Repository
+	scrapeDone  bool
 }
 
 // repoGroup groups repositories under a common owner name for template rendering.
@@ -96,7 +97,9 @@ const indexHTML = `<!DOCTYPE html>
 		<li><a href="/healthz">Health Check</a></li>
 	</ul>
 
-	{{if not .HasRepos}}
+	{{if not .Scraped}}
+	<div class="warning">No data yet &mdash; open <a href="/metrics">/metrics</a> to trigger the first data collection.</div>
+	{{else if not .HasRepos}}
 	<div class="warning">No GitHub targets are configured. Add organizations or users to the config file.</div>
 	{{else}}
 	{{range .RepoGroups}}
@@ -127,6 +130,7 @@ func (s *srv) metricsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	s.mu.Lock()
 	s.lastRepos = repos
+	s.scrapeDone = true
 	s.mu.Unlock()
 	promhttp.Handler().ServeHTTP(w, r)
 }
@@ -140,16 +144,19 @@ func (s *srv) indexHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	s.mu.RLock()
 	repos := s.lastRepos
+	scraped := s.scrapeDone
 	s.mu.RUnlock()
 
 	data := struct {
 		CommitSHA  string
 		Port       int
+		Scraped    bool
 		HasRepos   bool
 		RepoGroups []repoGroup
 	}{
 		CommitSHA:  metrics.CommitSHA,
 		Port:       s.port,
+		Scraped:    scraped,
 		HasRepos:   len(repos) > 0,
 		RepoGroups: groupRepos(repos),
 	}

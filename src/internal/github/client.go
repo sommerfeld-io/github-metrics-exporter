@@ -169,7 +169,7 @@ func (c *Client) listUserRepos(ctx context.Context, user string) ([]Repository, 
 func (c *Client) WorkflowRuns(ctx context.Context, owner, repo string) ([]WorkflowRun, error) {
 	slog.Info("github: fetching workflow runs", "owner", owner, "repo", repo)
 	opts := &gogithub.ListWorkflowRunsOptions{
-		ListOptions: gogithub.ListOptions{PerPage: 100},
+		ListOptions: gogithub.ListOptions{PerPage: 5},
 	}
 	page, _, err := c.gh.Actions.ListRepositoryWorkflowRuns(ctx, owner, repo, opts)
 	if err != nil {

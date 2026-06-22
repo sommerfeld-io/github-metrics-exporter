@@ -240,19 +240,43 @@ func TestMetricsEndpointShouldNotReturn200WhenCollectFails(t *testing.T) {
 	}
 }
 
-func TestRootEndpointShouldDisplayWarningWhenNoReposConfigured(t *testing.T) {
+func TestRootEndpointShouldShowPreScrapeMessageBeforeFirstMetricsScrape(t *testing.T) {
 	mux := setup(t)
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	mux.ServeHTTP(rec, req)
 
+	if !strings.Contains(rec.Body.String(), "No data yet") {
+		t.Error("expected pre-scrape message before first /metrics scrape")
+	}
+}
+
+func TestRootEndpointShouldNotShowNoTargetsMessageBeforeFirstMetricsScrape(t *testing.T) {
+	mux := setup(t)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	mux.ServeHTTP(rec, req)
+
+	if strings.Contains(rec.Body.String(), "No GitHub targets") {
+		t.Error("must not show no-targets message before any scrape has happened")
+	}
+}
+
+func TestRootEndpointShouldDisplayWarningWhenNoReposConfigured(t *testing.T) {
+	mux := setup(t)
+	scrapeMetrics(t, mux)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	mux.ServeHTTP(rec, req)
+
 	if !strings.Contains(rec.Body.String(), "No GitHub targets") {
-		t.Error("expected no-targets warning when repo list is empty")
+		t.Error("expected no-targets warning when repo list is empty after scrape")
 	}
 }
 
 func TestRootEndpointShouldNotDisplayRepoSectionWhenNoReposConfigured(t *testing.T) {
 	mux := setup(t)
+	scrapeMetrics(t, mux)
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	mux.ServeHTTP(rec, req)

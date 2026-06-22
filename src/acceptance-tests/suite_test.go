@@ -115,6 +115,13 @@ func TestMain(m *testing.M) {
 	}))
 	noTargetsURL = noTargetsSrv.URL
 
+	// Trigger an initial scrape on the no-targets server so that scrapeDone is set
+	// and the index page shows the "no targets configured" warning instead of "no data yet".
+	if _, err := http.Get(noTargetsURL + "/metrics"); err != nil {
+		slog.Error("setup: initial no-targets metrics scrape failed", "error", err)
+		os.Exit(1)
+	}
+
 	exitCode := m.Run()
 
 	testSrv.Close()
