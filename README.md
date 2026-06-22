@@ -73,7 +73,7 @@ All issues labeled as `risk` (= some sort of risk or a technical debt) or `secur
 
 ## Security Artifacts
 
-Every [Release](https://github.com/sommerfeld-io/github-metrics-exporter/releases) includes a Software Bill of Materials (SBOM) in [SPDX JSON](https://spdx.dev) format, attached as a release asset named `sommerfeldio-github-metrics-exporter_{version}.spdx.json` (e.g. `sommerfeldio-github-metrics-exporter_0.4.0.spdx.json`).
+Starting with version `0.4.1`, every [Release](https://github.com/sommerfeld-io/github-metrics-exporter/releases) includes a Software Bill of Materials (SBOM) in [SPDX JSON](https://spdx.dev) format, attached as a release asset named `sommerfeldio-github-metrics-exporter_{version}.spdx.json` (e.g. `sommerfeldio-github-metrics-exporter_0.4.1.spdx.json`).
 
 The SBOM provides a full inventory of all software components bundled in the container image - including Alpine OS packages and Go module dependencies - with their associated license identifiers(e.g., `MIT`, `Apache-2.0`). It is generated automatically during the release pipeline.
 
