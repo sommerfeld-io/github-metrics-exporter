@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sommerfeld-io/github-metrics-exporter/internal/metrics"
@@ -122,6 +123,9 @@ var indexTmpl = template.Must(template.New("index").Funcs(template.FuncMap{
 // metricsHandler calls the collect function to gather fresh data, updates the
 // cached repo list for the index page, then serves the Prometheus metrics.
 func (s *srv) metricsHandler(w http.ResponseWriter, r *http.Request) {
+	slog.Info("metrics: scrape started")
+	start := time.Now()
+
 	repos, err := s.collect(r.Context())
 	if err != nil {
 		slog.Error("metrics: data collection failed", "error", err)
@@ -132,6 +136,8 @@ func (s *srv) metricsHandler(w http.ResponseWriter, r *http.Request) {
 	s.lastRepos = repos
 	s.scrapeDone = true
 	s.mu.Unlock()
+
+	slog.Info("metrics: scrape completed", "duration", time.Since(start))
 	promhttp.Handler().ServeHTTP(w, r)
 }
 

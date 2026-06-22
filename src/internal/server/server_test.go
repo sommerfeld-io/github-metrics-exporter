@@ -1,8 +1,10 @@
 package server_test
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -12,6 +14,16 @@ import (
 	"github.com/sommerfeld-io/github-metrics-exporter/internal/metrics"
 	"github.com/sommerfeld-io/github-metrics-exporter/internal/server"
 )
+
+// captureLog redirects the global slog to a buffer for the duration of the test.
+func captureLog(t *testing.T) *bytes.Buffer {
+	t.Helper()
+	var buf bytes.Buffer
+	orig := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})))
+	t.Cleanup(func() { slog.SetDefault(orig) })
+	return &buf
+}
 
 func collectNothing(_ context.Context) ([]server.Repository, error) {
 	return nil, nil
@@ -375,5 +387,57 @@ func TestRootEndpointShouldDisplayCorrectBadgeForAccessibility(t *testing.T) {
 				t.Errorf("must not contain %q in response body", tc.wantAbsent)
 			}
 		})
+	}
+}
+
+func TestMetricsEndpointShouldLogScrapeStarted(t *testing.T) {
+	buf := captureLog(t)
+	mux := setup(t)
+	scrapeMetrics(t, mux)
+
+	if !strings.Contains(buf.String(), "metrics: scrape started") {
+		t.Error("expected log entry 'metrics: scrape started' when /metrics is requested")
+	}
+}
+
+func TestMetricsEndpointShouldNotSkipScrapeStartedLog(t *testing.T) {
+	buf := captureLog(t)
+	mux := setup(t)
+	scrapeMetrics(t, mux)
+
+	if strings.Contains(buf.String(), "metrics: scrape started") == false {
+		t.Error("scrape start log must not be absent when /metrics is requested")
+	}
+}
+
+func TestMetricsEndpointShouldLogScrapeCompleted(t *testing.T) {
+	buf := captureLog(t)
+	mux := setup(t)
+	scrapeMetrics(t, mux)
+
+	if !strings.Contains(buf.String(), "metrics: scrape completed") {
+		t.Error("expected log entry 'metrics: scrape completed' when /metrics request finishes")
+	}
+}
+
+func TestMetricsEndpointShouldNotSkipScrapeCompletedLog(t *testing.T) {
+	buf := captureLog(t)
+	mux := setup(t)
+	scrapeMetrics(t, mux)
+
+	if strings.Contains(buf.String(), "metrics: scrape completed") == false {
+		t.Error("scrape completion log must not be absent when /metrics is requested")
+	}
+}
+
+func TestNonMetricsEndpointShouldNotLogScrapeStarted(t *testing.T) {
+	buf := captureLog(t)
+	mux := setup(t)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	mux.ServeHTTP(rec, req)
+
+	if strings.Contains(buf.String(), "metrics: scrape started") {
+		t.Error("scrape start log must not be written for non-metrics endpoints")
 	}
 }

@@ -145,6 +145,7 @@ func TestAcceptanceSuite(t *testing.T) {
 			InitializeTokenScenario(ctx)
 			InitializeRepositoryScenario(ctx)
 			InitializeWorkflowScenario(ctx)
+			InitializeMetricsScrapeScenario(ctx)
 		},
 		Options: &opts,
 	}
