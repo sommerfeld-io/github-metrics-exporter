@@ -15,7 +15,6 @@ Provide insights into GitHub Actions, pipeline health and trends. Provide deep o
 - [Docker Hub Repository](https://hub.docker.com/r/sommerfeldio/github-metrics-exporter)
 - [Sonarcloud Code Quality and Security Analysis](https://sonarcloud.io/project/overview?id=sommerfeld-io_github-metrics-exporter)
 - [Where to file issues](https://github.com/sommerfeld-io/github-metrics-exporter/issues)
-- [Project Board for Issues and Pull Requests](https://github.com/orgs/sommerfeld-io/projects/1/views/1)
 
 ## Software Tags and Versioning
 
