@@ -5,7 +5,8 @@
       "Bash(task go:build)",
       "WebSearch",
       "Bash(task lint *)",
-      "Bash(task go:lint)"
+      "Bash(task go:lint)",
+      "Bash(task go:test:acceptance)"
     ]
   }
 }

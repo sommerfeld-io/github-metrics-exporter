@@ -9,7 +9,7 @@ An exporter that translates GitHub API data into Prometheus metrics.
 
 <!-- ===== END status badge ===== -->
 
-Provide insights into GitHub Actions, pipeline health and trends. Provide deep operational visibility into GitHub Actions, pipeline health trends.
+The Exporter queries the GitHub API for workflow run data across repositories and exposes the results as Prometheus metrics, making pipeline health a first-class observable signal in your monitoring stack. Each scrape captures run durations, outcomes, and trends per workflow, giving you the raw numbers needed to spot recurring failures, track improvement over time, and set meaningful alerts. Because the data lands in Prometheus, it integrates naturally with Grafana dashboards, alerting rules, and any other tooling already built around that ecosystem. The exporter is stateless and runs as a single container, so adding it to an existing observability setup requires nothing more than a config file and a token.
 
 - [Github Repository](https://github.com/sommerfeld-io/github-metrics-exporter)
 - [Docker Hub Repository](https://hub.docker.com/r/sommerfeldio/github-metrics-exporter)
