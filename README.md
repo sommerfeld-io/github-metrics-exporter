@@ -73,11 +73,15 @@ All issues labeled as `ADR` [are tracked as GitHub issue](https://github.com/som
 
 All issues labeled as `risk` (= some sort of risk or a technical debt) or `security` (= disclosed security issues - e.g. CVEs) [are tracked as GitHub issue](https://github.com/sommerfeld-io/github-metrics-exporter/issues?q=is%3Aissue+label%3Asecurity%2Crisk+is%3Aopen) and carry the respective label.
 
+## Licensing
+
+The application source code is released under the [MIT License](LICENSE.md). Go module dependencies are validated against a permissive license allowlist on every build, and the Alpine base image packages retain their own licenses independently of the application. For the full compliance approach and an explanation of what those licenses mean in practice, see [docs/license-compliance.md](docs/license-compliance.md).
+
 ## Security Artifacts
 
 Starting with version `0.4.1`, every [Release](https://github.com/sommerfeld-io/github-metrics-exporter/releases) includes a Software Bill of Materials (SBOM) in [SPDX JSON](https://spdx.dev) format, attached as a release asset named `sommerfeldio-github-metrics-exporter_{version}.spdx.json` (e.g. `sommerfeldio-github-metrics-exporter_0.4.1.spdx.json`).
 
-The SBOM provides a full inventory of all software components bundled in the container image - including Alpine OS packages and Go module dependencies - with their associated license identifiers(e.g., `MIT`, `Apache-2.0`). It is generated automatically during the release pipeline.
+The SBOM provides a full inventory of all software components bundled in the container image - including Alpine OS packages and Go module dependencies - with resolved SPDX license identifiers. It is generated automatically during the release pipeline.
 
 To download the SBOM for a specific release, navigate to the [Releases page](https://github.com/sommerfeld-io/github-metrics-exporter/releases), open the target release, and download the `.spdx.json` file from the **Assets** section.
 

@@ -39,6 +39,8 @@ jobs:
         shell: bash
       - name: Generate SPDX SBOM from Docker image
         uses: anchore/sbom-action@v0
+        env:
+          SYFT_GOLANG_SEARCH_REMOTE_LICENSES: "true"
         with:
           image: ${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USER }}/${{ env.image-name }}:${{ steps.release.outputs.version }}
           format: spdx-json
