@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"sync"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sommerfeld-io/github-metrics-exporter/internal/config"
@@ -77,19 +78,25 @@ func doCollect(ctx context.Context, orgs, users []string, discover discoverFunc,
 
 	workflow.RunConclusion.Reset()
 	workflow.JobConclusion.Reset()
+	var wg sync.WaitGroup
 	for _, r := range srvRepos {
 		if !r.Accessible {
 			continue
 		}
-		runsWithJobs, err := fetchWorkflows(ctx, r.Owner, r.Name)
-		if err != nil {
-			slog.Warn("collect: failed to fetch workflow data; skipping repo", "owner", r.Owner, "repo", r.Name, "error", err)
-			continue
-		}
-		if err := workflow.Record(r.Owner, r.Name, runsWithJobs); err != nil {
-			return nil, fmt.Errorf("failed to record workflow metrics for %s/%s: %w", r.Owner, r.Name, err)
-		}
+		wg.Add(1)
+		go func(r server.Repository) {
+			defer wg.Done()
+			runsWithJobs, err := fetchWorkflows(ctx, r.Owner, r.Name)
+			if err != nil {
+				slog.Warn("collect: failed to fetch workflow data; skipping repo", "owner", r.Owner, "repo", r.Name, "error", err)
+				return
+			}
+			if err := workflow.Record(r.Owner, r.Name, runsWithJobs); err != nil {
+				slog.Warn("collect: failed to record workflow metrics; skipping repo", "owner", r.Owner, "repo", r.Name, "error", err)
+			}
+		}(r)
 	}
+	wg.Wait()
 
 	return srvRepos, nil
 }

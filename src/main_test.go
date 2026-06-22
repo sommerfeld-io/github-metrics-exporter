@@ -311,3 +311,56 @@ func TestDoCollectShouldNotReturnErrorWhenWorkflowFetchReturnsEmpty(t *testing.T
 		t.Errorf("expected no error when workflow fetch returns empty list, got %v", err)
 	}
 }
+
+func TestDoCollectShouldReturnAllReposWhenSomeFetchesFail(t *testing.T) {
+	reg := prometheus.NewRegistry()
+	if err := metrics.Register(reg); err != nil {
+		t.Fatalf("failed to register metrics: %v", err)
+	}
+	multiDiscover := func(_ context.Context, _, _ []string) ([]github.Repository, error) {
+		return []github.Repository{
+			{Owner: "org", Name: "repo-ok", Accessible: true},
+			{Owner: "org", Name: "repo-fail", Accessible: true},
+			{Owner: "org", Name: "repo-ok2", Accessible: true},
+		}, nil
+	}
+	partialFetch := func(_ context.Context, _, repo string) ([]github.RunWithJobs, error) {
+		if repo == "repo-fail" {
+			return nil, fmt.Errorf("github API error")
+		}
+		return []github.RunWithJobs{}, nil
+	}
+	repos, err := doCollect(context.Background(), nil, nil, multiDiscover, partialFetch)
+	if err != nil {
+		t.Errorf("expected no error when some workflow fetches fail, got %v", err)
+	}
+	if len(repos) != 3 {
+		t.Errorf("expected 3 repos regardless of fetch failures, got %d", len(repos))
+	}
+}
+
+func TestDoCollectShouldNotReturnFewerReposWhenSomeFetchesFail(t *testing.T) {
+	reg := prometheus.NewRegistry()
+	if err := metrics.Register(reg); err != nil {
+		t.Fatalf("failed to register metrics: %v", err)
+	}
+	multiDiscover := func(_ context.Context, _, _ []string) ([]github.Repository, error) {
+		return []github.Repository{
+			{Owner: "org", Name: "repo-ok", Accessible: true},
+			{Owner: "org", Name: "repo-fail", Accessible: true},
+		}, nil
+	}
+	partialFetch := func(_ context.Context, _, repo string) ([]github.RunWithJobs, error) {
+		if repo == "repo-fail" {
+			return nil, fmt.Errorf("github API error")
+		}
+		return []github.RunWithJobs{}, nil
+	}
+	repos, err := doCollect(context.Background(), nil, nil, multiDiscover, partialFetch)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(repos) < 2 {
+		t.Errorf("fetch failure must not drop repos from the returned list; got %d, want 2", len(repos))
+	}
+}
