@@ -75,7 +75,7 @@ All issues labeled as `risk` (= some sort of risk or a technical debt) or `secur
 
 ## Licensing
 
-The application source code is released under the [MIT License](LICENSE.md). Go module dependencies are validated against a permissive license allowlist on every build, and the Alpine base image packages retain their own licenses independently of the application. For the full compliance approach and an explanation of what those licenses mean in practice, see [docs/license-compliance.md](docs/license-compliance.md).
+The application source code is released under the [MIT License](https://github.com/sommerfeld-io/github-metrics-exporter/blob/main/LICENSE.md). Go module dependencies are validated against a permissive license allowlist on every build, and the Alpine base image packages retain their own licenses independently of the application. For the full compliance approach and an explanation of what those licenses mean in practice, see [License Compliance](https://github.com/sommerfeld-io/github-metrics-exporter/blob/main/docs/license-compliance.md).
 
 ## Security Artifacts
 
