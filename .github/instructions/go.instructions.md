@@ -36,6 +36,8 @@ Apply these instructions to all Go code in `src/`.
 - Prefer helper functions and better names over line-by-line comments that only restate the code.
 - Use comments to explain why logic exists, important edge cases, or non-obvious trade-offs.
 - Prefer the simplest implementation that keeps call sites easy to understand and hard to misuse.
+- Long parameter lists. A method with eight parameters is doing too much, knows too much, or depends on too much. Get
+nervous above four; refuse above six.
 
 ## Comments and documentation
 
@@ -96,6 +98,11 @@ if err := someFunction(); err != nil {
 - Name tests with the `TestXxxShouldYyy` pattern.
 - Cover happy paths, negative cases, and inversions so tests prove both what should and should not happen.
 - Prefer table-driven tests when they improve clarity and reduce repetition.
+- Use TDD as a Design Forcing Function: If a test is hard to write, do not power through, listen to the signal. Hard-to-write
+tests almost always mean the code under test depends on too much. Refactor the design until the test is easy to write.
+- Test Structure should follow the "Arrange -> Act -> Assert" pattern.
+- As a validation, apply the Implementation-Swap Test: Ask, if I threw away this implementation and rewrote it from scratch, would my
+tests still make sense? If yes, the tests are coupled to behaviour. If not, they are coupled to implementation. But do not actually throw anything away! Just use this as a sort of validation.
 
 ### Acceptance tests and Gherkin feature files
 
