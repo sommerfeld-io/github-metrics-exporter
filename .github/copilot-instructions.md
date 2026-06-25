@@ -92,6 +92,8 @@ Always follow TDD. The test comes before the implementation - no exceptions.
 
 **Test behavior, not implementation.** Tests must assert on observable outcomes: return values, HTTP responses, metric values, error messages. Never assert on internal state, private fields, or how many times a helper was called. A test that breaks when you rename a private variable is a bad test.
 
+**Test Structure** should follow the "Arrange -> Act -> Assert" pattern.
+
 Cover the inversion. For every "should do X" test, add a "should not do Y" counterpart where it increases confidence. Example: if you assert gauge == 1.0, also assert gauge != 0.0 so the test proves the value was set explicitly and not left at the Go zero value. In Go, prefer expressing these positive/negative cases as table-driven tests when they share the same setup and differ only in inputs or expected outcomes. This keeps the test suite concise while ensuring both the expected behavior and its inversion are verified.
 
 ## Linux Requirement
